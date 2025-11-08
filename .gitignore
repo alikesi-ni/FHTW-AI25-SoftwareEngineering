@@ -11,3 +11,9 @@ wheels/
 
 # PyCharm
 .idea/
+
+# env files
+.env
+
+# Local DB containers
+db_data/
