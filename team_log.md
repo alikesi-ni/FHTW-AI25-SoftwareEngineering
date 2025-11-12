@@ -6,6 +6,8 @@
 | 2025-11-08 | Alexander   | Initial commit and set up uv-lock                                                      | 0.5   |
 | 2025-11-08 | Alexander   | Add DB Docker container with (empty) table `post`; modify main.py to output post count | 4.0   |
 | 2025-11-08 | Alexander   | Add team_log.md                                                                        | 0.5   |
+| 2025-11-11 | Alexander   | Pytest: add 3 posts and verify latest (add_post/get_latest)                            | 2.5   |
+| 2025-11-12 | Alexander   | Set up GitHub Actions PR-only workflow (Postgres service, uv, pytest)                  | 1.5   |
 
 ---
 
