@@ -1,0 +1,14 @@
+.form-row {
+  margin-bottom: 10px;
+}
+
+label {
+  display: inline-block;
+  width: 120px;
+  font-weight: bold;
+}
+
+input {
+  width: 200px;
+  padding: 3px;
+}

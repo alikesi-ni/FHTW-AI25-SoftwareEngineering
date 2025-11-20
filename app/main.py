@@ -1,12 +1,23 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
-from typing import Optional
+
+from starlette.middleware.cors import CORSMiddleware
+
 from app.service import add_post, get_latest_post, search_posts, get_post_by_id
+from app.service import list_posts as list_posts_service
 
 import os
 import uuid
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # allow Angular dev server
+    allow_credentials=True,
+    allow_methods=["*"],      # VERY IMPORTANT -> OPTIONS is here
+    allow_headers=["*"],      # allow Content-Type, etc.
+)
 
 # Where to store uploaded images
 UPLOAD_DIR = "uploads"
@@ -135,3 +146,8 @@ def get_post(post_id: int):
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
+
+@app.get("/posts")
+def list_posts():
+    return list_posts_service()
+
