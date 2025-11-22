@@ -5,7 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+  "fastapi>=0.121.3",
+  "uvicorn[standard]>=0.38.0",
   "sqlalchemy>=2.0",
   "psycopg[binary]>=3.2",
+  "python-multipart>=0.0.9",
+]
+
+[dependency-groups]
+dev = [
   "pytest>=9.0.0",
+  "httpx>=0.28.1",  # handy for testing FastAPI endpoints
 ]

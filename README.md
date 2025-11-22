@@ -119,6 +119,31 @@ Table 'post' exists and contains 0 entries.
 
 ---
 
+### Run the Backend (FastAPI)
+
+To start the backend server using **uvicorn**, run:
+
+``` bash
+uv run uvicorn app.main:app --reload
+```
+
+This launches your FastAPI application with auto-reload enabled for
+development.
+
+Example output:
+
+    INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+    INFO:     Started reloader process using WatchFiles
+    INFO:     Started server process
+    INFO:     Application startup complete.
+
+You can now open:
+
+-   API Docs: http://localhost:8000/docs
+-   Redoc: http://localhost:8000/redoc
+
+---
+
 ## 🗂 Project Structure
 
 ```
