@@ -55,3 +55,55 @@ def get_latest_post():
             "id": row[0], "image": row[1], "comment": row[2],
             "username": row[3], "created_at": row[4],
         }
+
+def search_posts(query: str):
+    """Search for posts where the comment or username contains the query."""
+    if not query:
+        raise ValueError("Search query cannot be empty")
+
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, image, comment, username, created_at
+            FROM post
+            WHERE comment ILIKE %s
+               OR username ILIKE %s
+            ORDER BY created_at DESC, id DESC;
+            """,
+            (f"%{query}%", f"%{query}%")
+        )
+        rows = cur.fetchall()
+
+        return [
+            {
+                "id": r[0],
+                "image": r[1],
+                "comment": r[2],
+                "username": r[3],
+                "created_at": r[4],
+            }
+            for r in rows
+        ]
+
+def get_post_by_id(post_id: int):
+    """Return a post with the given ID, or None if not found."""
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, image, comment, username, created_at
+            FROM post
+            WHERE id = %s
+            """,
+            (post_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        return {
+            "id": row[0],
+            "image": row[1],
+            "comment": row[2],
+            "username": row[3],
+            "created_at": row[4],
+        }

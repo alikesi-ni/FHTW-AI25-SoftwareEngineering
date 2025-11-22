@@ -3,6 +3,33 @@
 This is the first step of developing a simple social media app.  
 It connects to a **PostgreSQL** database and checks whether the table **`post`** exists in the `public` schema, printing how many entries it contains.
 
+# 🗂 Social-App — REST API + PostgreSQL (Step 2)
+
+This project implements a simple social media backend using **FastAPI**, **PostgreSQL**, and **psycopg**.  
+You can create posts, fetch posts, search posts, and retrieve the latest entry.
+
+The API automatically exposes a full **OpenAPI specification** and documentation UI.
+
+---
+
+## 🚀 Features
+
+- ✔ Create a post (`POST /posts`)
+- ✔ Get post by ID (`GET /posts/{id}`)
+- ✔ Get the latest post (`GET /posts/latest`)
+- ✔ Search posts (`GET /posts/search?q=...`)
+- ✔ Automatic OpenAPI docs (`/docs` & `/openapi.json`)
+- ✔ PostgreSQL database with init script
+- ✔ Image validation (image must exist inside `/uploads`)
+
+---
+
+## 📦 Requirements
+
+- Python 3.12+
+- `fastapi`, `uvicorn`, `psycopg`
+- Docker (for PostgreSQL)
+
 ---
 
 ## 🚀 Getting Started
