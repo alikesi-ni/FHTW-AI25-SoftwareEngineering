@@ -1,5 +1,3 @@
-version: "3.9"
-
 name: social-app
 services:
   db:

@@ -13,7 +13,7 @@ def _connect():
     )
 
 def _image_root() -> Path:
-    root = Path(os.getenv("IMAGE_ROOT", "../uploads"))
+    root = Path(os.getenv("IMAGE_ROOT", "uploads"))
     root.mkdir(parents=True, exist_ok=True)
     return root
 

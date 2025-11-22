@@ -1,102 +1,149 @@
 openapi: 3.1.0
 info:
   title: FastAPI
-  version: "0.1.0"
-
+  version: 0.1.0
 paths:
-
-  /posts:
+  "/posts":
     post:
       summary: Create Post Api
+      description: Create a post where `image` is a string (e.g. URL or path).
       operationId: create_post_api_posts_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PostIn"
+              "$ref": "#/components/schemas/PostIn"
+        required: true
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/posts/with-image":
+    post:
+      summary: Create Post With Image
+      description: |-
+        Create a post with an uploaded image file (PNG or JPG only).
 
-  /posts/latest:
+        Expects multipart/form-data with:
+        - username (form field)
+        - comment  (form field)
+        - image    (file field)
+      operationId: postWithImage
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              "$ref": "#/components/schemas/Body_postWithImage"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/posts/latest":
     get:
       summary: Get Latest
       operationId: get_latest_posts_latest_get
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
-
-  /posts/search:
+  "/posts/search":
     get:
       summary: Search
       operationId: search_posts_search_get
       parameters:
-        - name: q
-          in: query
-          required: true
-          schema:
-            type: string
-            title: Q
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Search Query
+          description: Search string (case-insensitive) used to match comments and
+            usernames.
+        description: Search string (case-insensitive) used to match comments and usernames.
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
-
-  /posts/{post_id}:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/posts/{post_id}":
     get:
       summary: Get Post
       operationId: get_post_posts__post_id__get
       parameters:
-        - name: post_id
-          in: path
-          required: true
-          schema:
-            type: integer
-            title: Post Id
+      - name: post_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Post Id
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
-
+                "$ref": "#/components/schemas/HTTPValidationError"
 components:
   schemas:
-
-    PostIn:
-      title: PostIn
+    Body_postWithImage:
+      properties:
+        username:
+          type: string
+          title: Username
+        comment:
+          type: string
+          title: Comment
+        image:
+          type: string
+          format: binary
+          title: Image
       type: object
       required:
-        - image
-        - comment
-        - username
+      - username
+      - comment
+      - image
+      title: Body_postWithImage
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            "$ref": "#/components/schemas/ValidationError"
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    PostIn:
       properties:
         image:
           type: string
@@ -107,35 +154,30 @@ components:
         username:
           type: string
           title: Username
-
-    HTTPValidationError:
-      title: HTTPValidationError
-      type: object
-      properties:
-        detail:
-          title: Detail
-          type: array
-          items:
-            $ref: "#/components/schemas/ValidationError"
-
-    ValidationError:
-      title: ValidationError
       type: object
       required:
-        - loc
-        - msg
-        - type
+      - image
+      - comment
+      - username
+      title: PostIn
+    ValidationError:
       properties:
         loc:
-          title: Location
-          type: array
           items:
             anyOf:
-              - type: string
-              - type: integer
+            - type: string
+            - type: integer
+          type: array
+          title: Location
         msg:
+          type: string
           title: Message
-          type: string
         type:
-          title: Error Type
           type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
