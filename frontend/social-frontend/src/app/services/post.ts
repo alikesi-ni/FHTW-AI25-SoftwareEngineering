@@ -47,4 +47,12 @@ export class PostService {
   getAllPosts() {
     return this.http.get<any[]>(`${this.apiUrl}/posts`);
   }
+
+  getPostsByUser(username: string) {
+    return this.http.get<any[]>(`${this.apiUrl}/posts`, {
+      params: {
+        user: username
+      }
+    });
+  }
 }
