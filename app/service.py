@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
+
 import psycopg
 
 def _connect():
@@ -43,18 +45,10 @@ def add_post(image: str, comment: str, username: str) -> int:
         return post_id
 
 def get_latest_post():
-    with _connect() as conn, conn.cursor() as cur:
-        cur.execute(
-            "SELECT id, image, comment, username, created_at "
-            "FROM post ORDER BY created_at DESC, id DESC LIMIT 1"
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return {
-            "id": row[0], "image": row[1], "comment": row[2],
-            "username": row[3], "created_at": row[4],
-        }
+    posts = get_posts(limit=1)
+    if not posts:
+        return None
+    return posts[0]
 
 def search_posts(query: str):
     """Search for posts where the comment or username contains the query."""
@@ -85,33 +79,42 @@ def search_posts(query: str):
             for r in rows
         ]
 
-def get_post_by_id(post_id: int):
-    """Return a post with the given ID, or None if not found."""
-    with _connect() as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, image, comment, username, created_at
-            FROM post
-            WHERE id = %s
-            """,
-            (post_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
+def get_posts(
+    username: Optional[str] = None,
+    order_by: str = "created_at",
+    order_dir: str = "desc",
+    limit: Optional[int] = None,
+):
+    # Whitelisted ordering
+    order_by_map = {"created_at": "created_at", "id": "id"}
+    order_dir_map = {"asc": "ASC", "desc": "DESC"}
 
-        return {
-            "id": row[0],
-            "image": row[1],
-            "comment": row[2],
-            "username": row[3],
-            "created_at": row[4],
-        }
-    
+    order_col = order_by_map.get(order_by, "created_at")
+    order_dir_sql = order_dir_map.get(order_dir.lower(), "DESC")
 
-def list_posts():
+    base_sql = """
+        SELECT id, image, comment, username, created_at
+        FROM post
+    """
+
+    conditions = []
+    params = []
+
+    if username:
+        conditions.append("username = %s")
+        params.append(username)
+
+    if conditions:
+        base_sql += " WHERE " + " AND ".join(conditions)
+
+    base_sql += f" ORDER BY {order_col} {order_dir_sql}"
+
+    if limit is not None:
+        base_sql += " LIMIT %s"
+        params.append(limit)
+
     with _connect() as conn, conn.cursor() as cur:
-        cur.execute("SELECT id, image, comment, username, created_at FROM post ORDER BY created_at DESC")
+        cur.execute(base_sql, params)
         rows = cur.fetchall()
         return [
             {

@@ -4,38 +4,6 @@ info:
   version: 0.1.0
 paths:
   "/posts":
-    get:
-      summary: List Posts
-      operationId: list_posts_posts_get
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-    post:
-      summary: Create Post Api
-      description: Create a post where `image` is a string (e.g. URL or path).
-      operationId: create_post_api_posts_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/PostIn"
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/HTTPValidationError"
-  "/posts/with-image":
     post:
       summary: Create Post With Image
       description: |-
@@ -45,13 +13,13 @@ paths:
         - username (form field)
         - comment  (form field)
         - image    (file field)
-      operationId: postWithImage
+      operationId: createPostWithImage
       requestBody:
+        required: true
         content:
           multipart/form-data:
             schema:
-              "$ref": "#/components/schemas/Body_postWithImage"
-        required: true
+              "$ref": "#/components/schemas/Body_createPostWithImage"
       responses:
         '200':
           description: Successful Response
@@ -64,16 +32,64 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/HTTPValidationError"
-  "/posts/latest":
     get:
-      summary: Get Latest
-      operationId: get_latest_posts_latest_get
+      summary: Get Posts
+      operationId: get_posts_posts_get
+      parameters:
+      - name: user
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter posts by exact username
+          title: User
+        description: Filter posts by exact username
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: "^(created_at|id)$"
+          description: Order by 'created_at' or 'id'
+          default: created_at
+          title: Order By
+        description: Order by 'created_at' or 'id'
+      - name: order_dir
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: "^(asc|desc)$"
+          description: Order direction 'asc' or 'desc'
+          default: desc
+          title: Order Dir
+        description: Order direction 'asc' or 'desc'
+      - name: limit
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 1000
+            minimum: 1
+          - type: 'null'
+          description: Limit number of returned posts
+          title: Limit
+        description: Limit number of returned posts
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
   "/posts/search":
     get:
       summary: Search
@@ -100,32 +116,9 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/HTTPValidationError"
-  "/posts/{post_id}":
-    get:
-      summary: Get Post
-      operationId: get_post_posts__post_id__get
-      parameters:
-      - name: post_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Post Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/HTTPValidationError"
 components:
   schemas:
-    Body_postWithImage:
+    Body_createPostWithImage:
       properties:
         username:
           type: string
@@ -142,7 +135,7 @@ components:
       - username
       - comment
       - image
-      title: Body_postWithImage
+      title: Body_createPostWithImage
     HTTPValidationError:
       properties:
         detail:
@@ -152,23 +145,6 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    PostIn:
-      properties:
-        image:
-          type: string
-          title: Image
-        comment:
-          type: string
-          title: Comment
-        username:
-          type: string
-          title: Username
-      type: object
-      required:
-      - image
-      - comment
-      - username
-      title: PostIn
     ValidationError:
       properties:
         loc:

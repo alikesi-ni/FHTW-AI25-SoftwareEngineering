@@ -1,11 +1,12 @@
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
 
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app.service import add_post, get_latest_post, search_posts, get_post_by_id
-from app.service import list_posts as list_posts_service
+import app.service as service
 
 import os
 import uuid
@@ -35,27 +36,9 @@ class PostIn(BaseModel):
     username: str
 
 
-@app.post("/posts")
-def create_post_api(data: PostIn):
-    """
-    Create a post where `image` is a string (e.g. URL or path).
-    """
-    try:
-        post_id = add_post(
-            image=data.image,
-            comment=data.comment,
-            username=data.username,
-        )
-        return {"id": post_id}
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 @app.post(
-    "/posts/with-image",
-    operation_id="postWithImage",
+    "/posts",
+    operation_id="createPostWithImage",
     summary="Create Post With Image",
     description=(
         "Create a post with an uploaded image file (PNG or JPG only).\n\n"
@@ -108,7 +91,7 @@ async def create_post_with_image(
 
     # 5) Use existing add_post function (with filename as param) to save post to db
     try:
-        post_id = add_post(
+        post_id = service.add_post(
             image=filename,
             comment=comment,
             username=username,
@@ -120,14 +103,6 @@ async def create_post_with_image(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/posts/latest")
-def get_latest():
-    post = get_latest_post()
-    if not post:
-        raise HTTPException(status_code=404, detail="No posts found.")
-    return post
-
-
 @app.get("/posts/search")
 def search(
     q: str = Query(
@@ -137,19 +112,38 @@ def search(
     )
 ):
     try:
-        return search_posts(q)
+        return service.search_posts(q)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/posts/{post_id}")
-def get_post(post_id: int):
-    post = get_post_by_id(post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    return post
-
 @app.get("/posts")
-def list_posts():
-    return list_posts_service()
+def get_posts(
+    user: Optional[str] = Query(
+        None,
+        description="Filter posts by exact username",
+    ),
+    order_by: str = Query(
+        "created_at",
+        pattern="^(created_at|id)$",
+        description="Order by 'created_at' or 'id'",
+    ),
+    order_dir: str = Query(
+        "desc",
+        pattern="^(asc|desc)$",
+        description="Order direction 'asc' or 'desc'",
+    ),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=1000,
+        description="Limit number of returned posts",
+    ),
+):
+    return service.get_posts(
+        username=user,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+    )
 
