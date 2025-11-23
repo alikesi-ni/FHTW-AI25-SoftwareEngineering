@@ -6,7 +6,7 @@
 <div *ngIf="posts.length > 0">
   <div *ngFor="let p of posts" class="post-card">
     <p><strong>ID:</strong> {{ p.id }}</p>
-    <p><strong>Image:</strong> {{ p.image }}</p>
+    <p><strong>Image:</strong> {{ p.image }}</p> <!-- or image_url / image_file_name -->
     <p><strong>Comment:</strong> {{ p.comment }}</p>
     <p><strong>Username:</strong> {{ p.username }}</p>
     <hr />

@@ -25,5 +25,10 @@
   {{ loading ? "Creating..." : "Create" }}
 </button>
 
-<p class="result" *ngIf="result">{{ result }}</p>
-<p class="error" *ngIf="error">{{ error }}</p>
+@if (result) {
+  <p class="result">{{ result }}</p>
+}
+
+@if (error) {
+  <p class="error">{{ error }}</p>
+}
