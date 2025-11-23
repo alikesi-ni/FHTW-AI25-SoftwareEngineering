@@ -1,16 +1,35 @@
 <h2>All Posts</h2>
 
-<p *ngIf="loading">Loading posts...</p>
-<p *ngIf="error" class="error">{{ error }}</p>
+@if (loading) {
+  <p>Loading posts...</p>
+}
 
-<div *ngIf="posts.length > 0">
-  <div *ngFor="let p of posts" class="post-card">
-    <p><strong>ID:</strong> {{ p.id }}</p>
-    <p><strong>Image:</strong> {{ p.image }}</p>
-    <p><strong>Comment:</strong> {{ p.comment }}</p>
-    <p><strong>Username:</strong> {{ p.username }}</p>
-    <hr />
-  </div>
-</div>
+@if (error) {
+  <p class="error">{{ error }}</p>
+}
 
-<p *ngIf="!loading && posts.length === 0">No posts yet.</p>
+@if (!loading && posts.length > 0) {
+  @for (p of posts; track p.id) {
+    <div class="post-card">
+      <p><strong>ID:</strong> {{ p.id }}</p>
+
+      @if (p.image) {
+        <div class="post-image">
+          <img
+            [src]="'http://localhost:8000/static/' + p.image"
+            alt="Post image {{ p.id }}"
+            class="post-image-img"
+          />
+        </div>
+      }
+
+      <p><strong>Comment:</strong> {{ p.comment }}</p>
+      <p><strong>Username:</strong> {{ p.username }}</p>
+      <hr />
+    </div>
+  }
+}
+
+@if (!loading && posts.length === 0) {
+  <p>No posts yet.</p>
+}

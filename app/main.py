@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
 
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from app.service import add_post, get_latest_post, search_posts, get_post_by_id
 from app.service import list_posts as list_posts_service
@@ -22,6 +23,7 @@ app.add_middleware(
 # Where to store uploaded images
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 

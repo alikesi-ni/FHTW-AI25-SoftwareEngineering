@@ -20,3 +20,6 @@ wheels/
 
 # Local DB containers
 db_data/
+
+# Uploads
+uploads/
