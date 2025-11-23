@@ -8,6 +8,11 @@ export interface CreatePostRequest {
   username: string;
 }
 
+export interface CreatePostWithImageResponse {
+  id: number;
+  image_path: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -17,12 +22,29 @@ export class PostService {
 
   constructor(private http: HttpClient) {}
 
+  // Old JSON endpoint (if you still want it)
   createPost(data: CreatePostRequest): Observable<{ id: number }> {
     return this.http.post<{ id: number }>(`${this.apiUrl}/posts`, data);
   }
 
-  getAllPosts() {
-  return this.http.get<any[]>('http://localhost:8000/posts');
-}
+  // New: use multipart/form-data to hit /posts/with-image
+  createPostWithImage(
+    username: string,
+    comment: string,
+    imageFile: File
+  ): Observable<CreatePostWithImageResponse> {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('comment', comment);
+    formData.append('image', imageFile); // name must be "image"
 
+    return this.http.post<CreatePostWithImageResponse>(
+      `${this.apiUrl}/posts/with-image`,
+      formData
+    );
+  }
+
+  getAllPosts() {
+    return this.http.get<any[]>(`${this.apiUrl}/posts`);
+  }
 }

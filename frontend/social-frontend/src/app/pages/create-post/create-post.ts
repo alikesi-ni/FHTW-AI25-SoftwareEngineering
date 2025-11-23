@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { PostService, CreatePostRequest } from '../../services/post';
+import { PostService } from '../../services/post';
 
 @Component({
   selector: 'app-create-post',
@@ -10,11 +10,14 @@ import { PostService, CreatePostRequest } from '../../services/post';
   styleUrls: ['./create-post.css']
 })
 export class CreatePost {
-  form: CreatePostRequest = {
-    image: '',
+  // Only comment + username are bound via ngModel now
+  form = {
     comment: '',
     username: ''
   };
+
+  // Holds the selected file from the <input type="file">
+  selectedFile: File | null = null;
 
   result: string | null = null;
   loading = false;
@@ -22,23 +25,51 @@ export class CreatePost {
 
   constructor(private postService: PostService) {}
 
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      this.selectedFile = null;
+      return;
+    }
+    this.selectedFile = input.files[0];
+    this.error = null;
+  }
+
   submit() {
     this.error = null;
     this.result = null;
+
+    if (!this.selectedFile) {
+      this.error = 'Please select an image file.';
+      return;
+    }
+
+    if (!this.form.username) {
+      this.error = 'Username is required.';
+      return;
+    }
+
     this.loading = true;
 
-    this.postService.createPost(this.form).subscribe({
-      next: (res) => {
-        this.loading = false;
-        this.result = `Post created with ID: ${res.id}`;
+    this.postService
+      .createPostWithImage(this.form.username, this.form.comment, this.selectedFile)
+      .subscribe({
+        next: (res) => {
+          this.loading = false;
+          this.result = `Post created with ID: ${res.id}`;
 
-        // RESET WORKS
-        this.form = { image: '', comment: '', username: '' };
-      },
-      error: () => {
-        this.loading = false;
-        this.error = 'Failed to create post. Check backend.';
-      }
-    });
+          // Reset form + file
+          this.form = { comment: '', username: '' };
+          this.selectedFile = null;
+        },
+        error: (err) => {
+          this.loading = false;
+          if (err.error?.detail) {
+            this.error = err.error.detail;
+          } else {
+            this.error = 'Failed to create post. Check backend.';
+          }
+        }
+      });
   }
 }

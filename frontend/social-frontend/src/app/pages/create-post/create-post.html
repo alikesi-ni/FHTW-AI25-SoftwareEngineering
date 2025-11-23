@@ -1,19 +1,22 @@
-
 <h2>Create Post</h2>
 
 <div class="form-row">
-  <label>Image filename:</label>
-  <input type="text" [(ngModel)]="form.image" />
+  <label>Image:</label>
+  <input
+    type="file"
+    (change)="onFileSelected($event)"
+    accept="image/png, image/jpeg"
+  />
 </div>
 
 <div class="form-row">
   <label>Comment:</label>
-  <input type="text" [(ngModel)]="form.comment" />
+  <input type="text" [(ngModel)]="form.comment" name="comment" />
 </div>
 
 <div class="form-row">
   <label>Username:</label>
-  <input type="text" [(ngModel)]="form.username" />
+  <input type="text" [(ngModel)]="form.username" name="username" />
 </div>
 
 <button
