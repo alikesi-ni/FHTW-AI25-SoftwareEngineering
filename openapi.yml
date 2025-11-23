@@ -4,6 +4,15 @@ info:
   version: 0.1.0
 paths:
   "/posts":
+    get:
+      summary: List Posts
+      operationId: list_posts_posts_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
     post:
       summary: Create Post Api
       description: Create a post where `image` is a string (e.g. URL or path).

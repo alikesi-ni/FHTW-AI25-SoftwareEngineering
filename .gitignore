@@ -12,6 +12,9 @@ wheels/
 # PyCharm
 .idea/
 
+# VS Code
+.vscode/
+
 # env files
 .env
 
