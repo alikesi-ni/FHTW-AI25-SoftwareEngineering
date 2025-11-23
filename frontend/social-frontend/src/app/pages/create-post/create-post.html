@@ -1,0 +1,26 @@
+
+<h2>Create Post</h2>
+
+<div class="form-row">
+  <label>Image filename:</label>
+  <input type="text" [(ngModel)]="form.image" />
+</div>
+
+<div class="form-row">
+  <label>Comment:</label>
+  <input type="text" [(ngModel)]="form.comment" />
+</div>
+
+<div class="form-row">
+  <label>Username:</label>
+  <input type="text" [(ngModel)]="form.username" />
+</div>
+
+<button
+  (click)="submit()"
+  [disabled]="loading">
+  {{ loading ? "Creating..." : "Create" }}
+</button>
+
+<p class="result" *ngIf="result">{{ result }}</p>
+<p class="error" *ngIf="error">{{ error }}</p>

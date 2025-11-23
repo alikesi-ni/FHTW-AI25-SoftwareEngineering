@@ -107,3 +107,20 @@ def get_post_by_id(post_id: int):
             "username": row[3],
             "created_at": row[4],
         }
+    
+
+def list_posts():
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute("SELECT id, image, comment, username, created_at FROM post ORDER BY created_at DESC")
+        rows = cur.fetchall()
+        return [
+            {
+                "id": r[0],
+                "image": r[1],
+                "comment": r[2],
+                "username": r[3],
+                "created_at": r[4],
+            }
+            for r in rows
+        ]
+

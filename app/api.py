@@ -4,8 +4,19 @@ from typing import Optional
 from app.service import add_post, get_latest_post
 from app.service import search_posts
 from app.service import get_post_by_id
+from app.service import list_posts as list_posts_service
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # allow Angular dev server
+    allow_credentials=True,
+    allow_methods=["*"],      # VERY IMPORTANT -> OPTIONS is here
+    allow_headers=["*"],      # allow Content-Type, etc.
+)
+
 
 # Pydantic input model
 class PostIn(BaseModel):
@@ -51,3 +62,10 @@ def get_post(post_id: int):
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
+
+
+@app.get("/posts")
+def list_posts():
+    return list_posts_service()
+
+
