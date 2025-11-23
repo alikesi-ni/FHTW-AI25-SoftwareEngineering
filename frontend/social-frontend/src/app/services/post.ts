@@ -39,12 +39,20 @@ export class PostService {
     formData.append('image', imageFile); // name must be "image"
 
     return this.http.post<CreatePostWithImageResponse>(
-      `${this.apiUrl}/posts/with-image`,
+      `${this.apiUrl}/posts`,
       formData
     );
   }
 
   getAllPosts() {
     return this.http.get<any[]>(`${this.apiUrl}/posts`);
+  }
+
+  getPostsByUser(username: string) {
+    return this.http.get<any[]>(`${this.apiUrl}/posts`, {
+      params: {
+        user: username
+      }
+    });
   }
 }
