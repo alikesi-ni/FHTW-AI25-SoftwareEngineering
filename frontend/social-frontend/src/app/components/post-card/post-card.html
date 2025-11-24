@@ -1,21 +1,27 @@
-<div class="post-card">
-  <p><strong>ID:</strong> {{ post.id }}</p>
+<div class="card mb-3">
+  <div class="card-body">
+    <p class="text-muted mb-1">ID: {{ post.id }}</p>
 
-  @if (imageUrl) {
-    <div class="post-image">
-      <img
-        [src]="imageUrl"
-        alt="Post image {{ post.id }}"
-        class="post-image-img"
-      />
-    </div>
-  }
+    @if (imageUrl) {
+      <div class="mb-3 text-center">
+        <img
+          [src]="imageUrl"
+          alt="Post image {{ post.id }}"
+          class="img-fluid rounded"
+          style="max-height: 200px; object-fit: contain;"
+        />
+      </div>
+    }
 
-  @if (post.comment) {
-    <p><strong>Comment:</strong> {{ post.comment }}</p>
-  }
+    @if (post.comment) {
+      <p class="mb-2"><strong>Comment:</strong> {{ post.comment }}</p>
+    }
 
-  <p><strong>Username:</strong> {{ post.username }}</p>
-  <p><strong>Created at:</strong> {{ post.created_at }}</p>
-  <hr />
+    <p class="mb-1">
+      <strong>Username:</strong> {{ post.username }}
+    </p>
+    <p class="mb-0 text-muted">
+      <small>Created at: {{ post.created_at }}</small>
+    </p>
+  </div>
 </div>

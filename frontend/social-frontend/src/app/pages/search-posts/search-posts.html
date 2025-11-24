@@ -1,26 +1,39 @@
-<h2>Search Posts by User</h2>
+<h2 class="mb-3">Search Posts by User</h2>
 
-<div class="form-row">
-  <label>Username:</label>
-  <input
-    type="text"
-    [(ngModel)]="username"
-    name="username"
-    placeholder="Enter username"
-  />
-  <button
-    (click)="search()"
-    [disabled]="loading || !username.trim()">
-    {{ loading ? 'Searching...' : 'Search' }}
-  </button>
+<div class="card mb-3">
+  <div class="card-body">
+    <form class="row g-3" (ngSubmit)="search()">
+      <div class="col-md-6">
+        <label class="form-label" for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          class="form-control"
+          [(ngModel)]="username"
+          name="username"
+          placeholder="Enter username"
+        />
+      </div>
+
+      <div class="col-md-6 d-flex align-items-end">
+        <button
+          type="button"
+          class="btn btn-primary ms-md-2"
+          (click)="search()"
+          [disabled]="loading || !username.trim()">
+          {{ loading ? 'Searching...' : 'Search' }}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
 @if (error) {
-  <p class="error">{{ error }}</p>
+  <div class="alert alert-danger">{{ error }}</div>
 }
 
 @if (!loading && posts.length > 0) {
-  <h3>Results</h3>
+  <h3 class="mb-3">Results</h3>
 
   @for (p of posts; track p.id) {
     <app-post-card [post]="p"></app-post-card>
@@ -28,5 +41,7 @@
 }
 
 @if (!loading && !error && posts.length === 0 && username.trim()) {
-  <p>No posts found for this user.</p>
+  <div class="alert alert-info">
+    No posts found for this user.
+  </div>
 }

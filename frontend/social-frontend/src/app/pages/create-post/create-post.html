@@ -1,34 +1,72 @@
-<h2>Create Post</h2>
+<h2 class="mb-3">Create Post</h2>
 
-<div class="form-row">
-  <label>Image:</label>
-  <input
-    type="file"
-    (change)="onFileSelected($event)"
-    accept="image/png, image/jpeg"
-  />
+<div class="card mb-3">
+  <div class="card-body">
+    <form class="row g-3" (ngSubmit)="submit()">
+      <!-- Image (optional) -->
+      <div class="col-12">
+        <label class="form-label" for="image">Image</label>
+        <input
+          id="image"
+          type="file"
+          class="form-control"
+          (change)="onFileSelected($event)"
+          accept="image/png, image/jpeg"
+        />
+        <div class="form-text">
+          Optional. PNG or JPG only.
+        </div>
+      </div>
+
+      <!-- Comment (textarea, optional but required together with image) -->
+      <div class="col-12">
+        <label class="form-label" for="comment">Comment</label>
+        <textarea
+          id="comment"
+          class="form-control"
+          [(ngModel)]="form.comment"
+          name="comment"
+          rows="4"
+          maxlength="280"
+          placeholder="What do you want to share?"
+        ></textarea>
+        <div class="form-text">
+          Up to 280 characters. Either a comment or an image (or both) is required.
+        </div>
+      </div>
+
+      <!-- Username (required) -->
+      <div class="col-12">
+        <label class="form-label" for="username">
+          Username <span class="text-danger">*</span>
+        </label>
+        <input
+          id="username"
+          type="text"
+          class="form-control"
+          [(ngModel)]="form.username"
+          name="username"
+          placeholder="Your name"
+        />
+      </div>
+
+      <!-- Button -->
+      <div class="col-12 d-flex justify-content-end">
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="loading || !canSubmit()">
+          {{ loading ? 'Creating...' : 'Create' }}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
-
-<div class="form-row">
-  <label>Comment:</label>
-  <input type="text" [(ngModel)]="form.comment" name="comment" />
-</div>
-
-<div class="form-row">
-  <label>Username:</label>
-  <input type="text" [(ngModel)]="form.username" name="username" />
-</div>
-
-<button
-  (click)="submit()"
-  [disabled]="loading || !canSubmit()">
-  {{ loading ? "Creating..." : "Create" }}
-</button>
 
 @if (result) {
-  <p class="result">{{ result }}</p>
+  <div class="alert alert-success mt-3">{{ result }}</div>
 }
 
 @if (error) {
-  <p class="error">{{ error }}</p>
+  <div class="alert alert-danger mt-3">{{ error }}</div>
 }
