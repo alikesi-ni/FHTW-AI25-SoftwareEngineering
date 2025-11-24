@@ -5,21 +5,21 @@ info:
 paths:
   "/posts":
     post:
-      summary: Create Post With Image
+      summary: Create Post
       description: |-
-        Create a post with an uploaded image file (PNG or JPG only).
+        Create a post. Username is required. You must provide at least a comment or an image (or both).
 
         Expects multipart/form-data with:
-        - username (form field)
-        - comment  (form field)
-        - image    (file field)
-      operationId: createPostWithImage
+        - username (form field, required)
+        - comment  (form field, optional)
+        - image    (file field, optional, PNG or JPG only)
+      operationId: createPost
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              "$ref": "#/components/schemas/Body_createPostWithImage"
+              "$ref": "#/components/schemas/Body_createPost"
       responses:
         '200':
           description: Successful Response
@@ -118,24 +118,26 @@ paths:
                 "$ref": "#/components/schemas/HTTPValidationError"
 components:
   schemas:
-    Body_createPostWithImage:
+    Body_createPost:
       properties:
         username:
           type: string
           title: Username
         comment:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Comment
         image:
-          type: string
-          format: binary
+          anyOf:
+          - type: string
+            format: binary
+          - type: 'null'
           title: Image
       type: object
       required:
       - username
-      - comment
-      - image
-      title: Body_createPostWithImage
+      title: Body_createPost
     HTTPValidationError:
       properties:
         detail:
