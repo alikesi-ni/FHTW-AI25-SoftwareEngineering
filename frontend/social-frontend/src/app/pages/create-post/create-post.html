@@ -21,7 +21,7 @@
 
 <button
   (click)="submit()"
-  [disabled]="loading">
+  [disabled]="loading || !canSubmit()">
   {{ loading ? "Creating..." : "Create" }}
 </button>
 

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
@@ -15,13 +15,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # allow Angular dev server
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],      # VERY IMPORTANT -> OPTIONS is here
-    allow_headers=["*"],      # allow Content-Type, etc.
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Where to store uploaded images
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
@@ -29,75 +28,88 @@ app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 
 
-# Pydantic input model for JSON-based posts (image as string/path/url)
-class PostIn(BaseModel):
-    image: str
-    comment: str
-    username: str
-
-
 @app.post(
     "/posts",
-    operation_id="createPostWithImage",
-    summary="Create Post With Image",
+    operation_id="createPost",
+    summary="Create Post",
     description=(
-        "Create a post with an uploaded image file (PNG or JPG only).\n\n"
+        "Create a post. Username is required. You must provide at least a comment "
+        "or an image (or both).\n\n"
         "Expects multipart/form-data with:\n"
-        "- username (form field)\n"
-        "- comment  (form field)\n"
-        "- image    (file field)\n"
+        "- username (form field, required)\n"
+        "- comment  (form field, optional)\n"
+        "- image    (file field, optional, PNG or JPG only)\n"
     ),
 )
-async def create_post_with_image(
+async def create_post(
     username: str = Form(...),
-    comment: str = Form(...),
-    image: UploadFile = File(...),
+    comment: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
 ):
     """
-    Create a post with an uploaded image file (PNG or JPG only).
+    Create a post with an optional uploaded image file (PNG or JPG only)
+    and/or a text comment.
 
-    Expects multipart/form-data with:
-    - username (form field)
-    - comment  (form field)
-    - image    (file field)
+    Rules:
+    - username is required
+    - at least one of (comment, image) must be provided
     """
-    # 1) Check content type
-    if image.content_type not in ALLOWED_CONTENT_TYPES:
+    username = (username or "").strip()
+    comment = (comment or "").strip() or None
+
+    if not username:
+        raise HTTPException(status_code=400, detail="username is required")
+
+    if comment is None and image is None:
         raise HTTPException(
             status_code=400,
-            detail="Only PNG and JPG images are allowed.",
+            detail="Either comment or image must be provided.",
         )
 
-    # 2) Decide file extension based on content type
-    if image.content_type == "image/jpeg":
-        ext = ".jpg"
-    else:  # image/png
-        ext = ".png"
+    filename: Optional[str] = None
+    file_path: Optional[str] = None
 
-    # 3) Generate a safe, random filename
-    filename = f"{uuid.uuid4().hex}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    # If an image file was provided, validate + save it
+    if image is not None:
+        if image.content_type not in ALLOWED_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail="Only PNG and JPG images are allowed.",
+            )
 
-    # 4) Save file to disk
-    try:
-        contents = await image.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
-    except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to save uploaded image.",
-        )
+        if image.content_type == "image/jpeg":
+            ext = ".jpg"
+            # Pillow format would be "JPEG" if you ever process it
+        else:  # image/png
+            ext = ".png"
 
-    # 5) Use existing add_post function (with filename as param) to save post to db
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+
+        try:
+            contents = await image.read()
+            with open(file_path, "wb") as f:
+                f.write(contents)
+        except Exception:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save uploaded image.",
+            )
+
+    # Now store in DB via service layer
     try:
         post_id = service.add_post(
             image=filename,
             comment=comment,
             username=username,
         )
-        return {"id": post_id, "image_path": file_path}
+        # you can also include image_url if you like
+        response: dict[str, Any] = {"id": post_id}
+        if filename is not None:
+            response["image_path"] = file_path
+        return response
     except FileNotFoundError as e:
+        # Should not happen now since we just saved; but keep it
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

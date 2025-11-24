@@ -2,18 +2,20 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PostService } from '../../services/post';
+import { Post } from '../../models/post';
+import { PostCard } from '../../components/post-card/post-card';
 
 @Component({
   selector: 'app-search-posts',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PostCard],
   templateUrl: './search-posts.html',
   styleUrls: ['./search-posts.css']
 })
 export class SearchPosts {
 
   username = '';
-  posts: any[] = [];
+  posts: Post[] = [];
   loading = false;
   error: string | null = null;
 

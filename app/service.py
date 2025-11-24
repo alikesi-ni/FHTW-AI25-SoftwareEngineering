@@ -5,6 +5,7 @@ from typing import Optional
 
 import psycopg
 
+
 def _connect():
     return psycopg.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -14,10 +15,12 @@ def _connect():
         password=os.getenv("DB_PASSWORD", "password"),
     )
 
+
 def _image_root() -> Path:
     root = Path(os.getenv("IMAGE_ROOT", "uploads"))
     root.mkdir(parents=True, exist_ok=True)
     return root
+
 
 def _resolve_under_root(image_rel: str) -> Path:
     root = _image_root().resolve()
@@ -26,29 +29,51 @@ def _resolve_under_root(image_rel: str) -> Path:
         raise ValueError("image path must be inside IMAGE_ROOT")
     return p
 
-def add_post(image: str, comment: str, username: str) -> int:
-    """Insert a post after verifying the image file exists under IMAGE_ROOT."""
-    if not (image and comment and username):
-        raise ValueError("image, comment, and username are required")
 
-    img_abs = _resolve_under_root(image)
-    if not img_abs.exists():
-        raise FileNotFoundError(f"Image not found: {img_abs}")
+def add_post(image: Optional[str], comment: Optional[str], username: str) -> int:
+    """
+    Insert a post enforcing:
+    - username is required (non-empty)
+    - at least one of (image, comment) must be non-empty
+    - if image is given, the file must exist under IMAGE_ROOT
+    """
+
+    # Normalize inputs
+    username = (username or "").strip()
+    image = (image or "").strip() or None
+    comment = (comment or "").strip() or None
+
+    if not username:
+        raise ValueError("username is required")
+
+    if image is None and comment is None:
+        raise ValueError("Either comment or image must be provided")
+
+    # If an image filename is provided, verify the file exists
+    if image is not None:
+        img_abs = _resolve_under_root(image)
+        if not img_abs.exists():
+            raise FileNotFoundError(f"Image not found: {img_abs}")
 
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO post (image, comment, username, created_at) "
-            "VALUES (%s,%s,%s,%s) RETURNING id",
+            """
+            INSERT INTO post (image, comment, username, created_at)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
             (image, comment, username, datetime.utcnow()),
         )
         (post_id,) = cur.fetchone()
         return post_id
+
 
 def get_latest_post():
     posts = get_posts(limit=1)
     if not posts:
         return None
     return posts[0]
+
 
 def search_posts(query: str):
     """Search for posts where the comment or username contains the query."""
@@ -64,7 +89,7 @@ def search_posts(query: str):
                OR username ILIKE %s
             ORDER BY created_at DESC, id DESC;
             """,
-            (f"%{query}%", f"%{query}%")
+            (f"%{query}%", f"%{query}%"),
         )
         rows = cur.fetchall()
 
@@ -78,6 +103,7 @@ def search_posts(query: str):
             }
             for r in rows
         ]
+
 
 def get_posts(
     username: Optional[str] = None,
@@ -126,4 +152,3 @@ def get_posts(
             }
             for r in rows
         ]
-

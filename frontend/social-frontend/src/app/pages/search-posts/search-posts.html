@@ -23,24 +23,7 @@
   <h3>Results</h3>
 
   @for (p of posts; track p.id) {
-    <div class="post-card">
-      <p><strong>ID:</strong> {{ p.id }}</p>
-
-      @if (p.image) {
-        <div class="post-image">
-          <img
-            [src]="'http://localhost:8000/static/' + p.image"
-            alt="Post image {{ p.id }}"
-            class="post-image-img"
-          />
-        </div>
-      }
-
-      <p><strong>Comment:</strong> {{ p.comment }}</p>
-      <p><strong>Username:</strong> {{ p.username }}</p>
-      <p><strong>Created at:</strong> {{ p.created_at }}</p>
-      <hr />
-    </div>
+    <app-post-card [post]="p"></app-post-card>
   }
 }
 

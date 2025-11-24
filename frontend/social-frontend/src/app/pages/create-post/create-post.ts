@@ -1,23 +1,21 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 import { PostService } from '../../services/post';
-import {CommonModule} from '@angular/common';
 
 @Component({
   selector: 'app-create-post',
   standalone: true,
-  imports: [FormsModule,CommonModule],
+  imports: [FormsModule, CommonModule],
   templateUrl: './create-post.html',
   styleUrls: ['./create-post.css']
 })
 export class CreatePost {
-  // Only comment + username are bound via ngModel now
   form = {
     comment: '',
     username: ''
   };
 
-  // Holds the selected file from the <input type="file">
   selectedFile: File | null = null;
 
   result: string | null = null;
@@ -36,24 +34,38 @@ export class CreatePost {
     this.error = null;
   }
 
+  // Username must be non-empty,
+  // and either a comment or an image (or both) must be present
+  canSubmit(): boolean {
+    const usernameOk = this.form.username.trim().length > 0;
+    const hasComment = this.form.comment.trim().length > 0;
+    const hasImage = !!this.selectedFile;
+    return usernameOk && (hasComment || hasImage);
+  }
+
   submit() {
     this.error = null;
     this.result = null;
 
-    if (!this.selectedFile) {
-      this.error = 'Please select an image file.';
+    const username = this.form.username.trim();
+    const comment = this.form.comment.trim();
+    const hasComment = comment.length > 0;
+    const hasImage = !!this.selectedFile;
+
+    if (!username) {
+      this.error = 'Username is required.';
       return;
     }
 
-    if (!this.form.username) {
-      this.error = 'Username is required.';
+    if (!hasComment && !hasImage) {
+      this.error = 'Please provide at least a comment or an image.';
       return;
     }
 
     this.loading = true;
 
     this.postService
-      .createPostWithImage(this.form.username, this.form.comment, this.selectedFile)
+      .createPost(username, comment, this.selectedFile)
       .subscribe({
         next: (res) => {
           this.loading = false;
