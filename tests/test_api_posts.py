@@ -1,4 +1,3 @@
-# tests/test_api_posts.py
 import io
 from typing import Dict
 
@@ -33,11 +32,12 @@ def test_create_post_comment_only_via_api(client: TestClient):
     assert posts[0]["id"] == body["id"]
     assert posts[0]["username"] == "alice"
     assert posts[0]["comment"] == "hello world"
+    # image may be null or empty depending on service implementation
     assert posts[0]["image"] is None or posts[0]["image"] == ""
 
 
-def test_create_post_with_image_via_api(client: TestClient, tmp_path):
-    # Fake image bytes
+def test_create_post_with_image_via_api(client: TestClient):
+    # Fake PNG bytes
     fake_image_bytes = b"\x89PNG\r\n\x1a\n" + b"fakepngdata"
 
     files = {
@@ -81,7 +81,14 @@ def test_get_posts_filter_by_user(client: TestClient):
     create_comment_only_post(client, "bob", "b1")
     create_comment_only_post(client, "alice", "a2")
 
-    resp = client.get("/posts", params={"user": "alice", "order_by": "id", "order_dir": "asc"})
+    resp = client.get(
+        "/posts",
+        params={
+            "user": "alice",
+            "order_by": "id",
+            "order_dir": "asc",
+        },
+    )
     assert resp.status_code == 200
     posts = resp.json()
 
@@ -89,20 +96,30 @@ def test_get_posts_filter_by_user(client: TestClient):
     assert [p["username"] for p in posts] == ["alice", "alice"]
 
 
-def test_get_latest_endpoint(client: TestClient):
-    # Initially 404
-    resp = client.get("/posts/latest")
-    assert resp.status_code == 404
+def test_get_latest_via_posts_limit(client: TestClient):
+    # Initially: no posts -> /posts?limit=1 returns empty list
+    resp = client.get("/posts", params={"limit": 1})
+    assert resp.status_code == 200
+    assert resp.json() == []
 
     # After creating posts
     create_comment_only_post(client, "alice", "first")
     body2 = create_comment_only_post(client, "alice", "second")
 
-    resp2 = client.get("/posts/latest")
+    resp2 = client.get(
+        "/posts",
+        params={
+            "limit": 1,
+            "order_by": "created_at",
+            "order_dir": "desc",
+        },
+    )
     assert resp2.status_code == 200
-    latest = resp2.json()
-    assert latest["id"] == body2["id"]
-    assert latest["comment"] == "second"
+    posts = resp2.json()
+    assert len(posts) == 1
+    assert posts[0]["id"] == body2["id"]
+    assert posts[0]["comment"] == "second"
+    assert posts[0]["username"] == "alice"
 
 
 def test_search_posts_endpoint(client: TestClient):
