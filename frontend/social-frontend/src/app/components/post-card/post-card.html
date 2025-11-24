@@ -1,0 +1,21 @@
+<div class="post-card">
+  <p><strong>ID:</strong> {{ post.id }}</p>
+
+  @if (imageUrl) {
+    <div class="post-image">
+      <img
+        [src]="imageUrl"
+        alt="Post image {{ post.id }}"
+        class="post-image-img"
+      />
+    </div>
+  }
+
+  @if (post.comment) {
+    <p><strong>Comment:</strong> {{ post.comment }}</p>
+  }
+
+  <p><strong>Username:</strong> {{ post.username }}</p>
+  <p><strong>Created at:</strong> {{ post.created_at }}</p>
+  <hr />
+</div>

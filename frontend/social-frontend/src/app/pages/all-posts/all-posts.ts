@@ -1,36 +1,37 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PostService } from '../../services/post';
+import { PostCard } from '../../components/post-card/post-card';
 
 @Component({
-  selector: 'app-list-posts',
+  selector: 'app-all-posts',
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './list-posts.html',
-  styleUrls: ['./list-posts.css']
+  imports: [CommonModule, PostCard],
+  templateUrl: './all-posts.html',
+  styleUrls: ['./all-posts.css'],
 })
-export class ListPosts implements OnInit {
+export class AllPosts implements OnInit {
 
   posts: any[] = [];
-  loading = false;
+  loading = true;
   error: string | null = null;
 
   constructor(private postService: PostService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.loadPosts();
   }
 
-  loadPosts() {
-    this.loading = true;
+  loadPosts(): void {
     this.error = null;
 
     this.postService.getAllPosts().subscribe({
       next: (res) => {
-        this.posts = res;
+        this.posts = res ?? [];
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('Failed to load posts', err);
         this.error = 'Failed to load posts.';
         this.loading = false;
       }

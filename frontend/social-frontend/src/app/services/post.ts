@@ -1,16 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { Post } from '../models/post';
 
-export interface CreatePostRequest {
-  image: string;
-  comment: string;
-  username: string;
-}
-
-export interface CreatePostWithImageResponse {
+export interface CreatePostResponse {
   id: number;
-  image_path: string;
+  image_url?: string; // if you ever return it from backend
 }
 
 @Injectable({
@@ -22,36 +17,41 @@ export class PostService {
 
   constructor(private http: HttpClient) {}
 
-  // Old JSON endpoint (if you still want it)
-  createPost(data: CreatePostRequest): Observable<{ id: number }> {
-    return this.http.post<{ id: number }>(`${this.apiUrl}/posts`, data);
-  }
-
-  // New: use multipart/form-data to hit /posts/with-image
-  createPostWithImage(
+  /**
+   * Create a post using multipart/form-data.
+   * - username: required
+   * - comment: can be empty
+   * - imageFile: optional (can be null)
+   */
+  createPost(
     username: string,
     comment: string,
-    imageFile: File
-  ): Observable<CreatePostWithImageResponse> {
+    imageFile?: File | null
+  ): Observable<CreatePostResponse> {
     const formData = new FormData();
     formData.append('username', username);
-    formData.append('comment', comment);
-    formData.append('image', imageFile); // name must be "image"
+    formData.append('comment', comment ?? '');
 
-    return this.http.post<CreatePostWithImageResponse>(
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
+    return this.http.post<CreatePostResponse>(
       `${this.apiUrl}/posts`,
       formData
     );
   }
 
-  getAllPosts() {
-    return this.http.get<any[]>(`${this.apiUrl}/posts`);
+  getAllPosts(): Observable<Post[]> {
+    return this.http.get<Post[]>(`${this.apiUrl}/posts`);
   }
 
-  getPostsByUser(username: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/posts`, {
+  getPostsByUser(username: string): Observable<Post[]> {
+    return this.http.get<Post[]>(`${this.apiUrl}/posts`, {
       params: {
-        user: username
+        user: username,
+        order_by: 'created_at',
+        order_dir: 'desc'
       }
     });
   }
