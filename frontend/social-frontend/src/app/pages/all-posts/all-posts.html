@@ -1,11 +1,15 @@
-<h2>All Posts</h2>
+<h2 class="mb-3">All Posts</h2>
 
 @if (loading) {
-  <p>Loading posts...</p>
+  <div class="alert alert-secondary">
+    Loading posts...
+  </div>
 }
 
 @if (error) {
-  <p class="error">{{ error }}</p>
+  <div class="alert alert-danger">
+    {{ error }}
+  </div>
 }
 
 @if (!loading && posts.length > 0) {
@@ -15,5 +19,7 @@
 }
 
 @if (!loading && posts.length === 0 && !error) {
-  <p>No posts yet.</p>
+  <div class="alert alert-info">
+    No posts yet.
+  </div>
 }

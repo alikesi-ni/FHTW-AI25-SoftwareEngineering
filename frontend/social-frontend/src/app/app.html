@@ -1,8 +1,32 @@
-<h1>Social App</h1>
-<nav>
-  <a routerLink="/create-post">Create Post</a> |
-  <a routerLink="/all-posts">All Posts</a> |
-  <a routerLink="/search-posts">Search Posts</a>
-</nav>
+<div class="container py-4">
+  <h1 class="mb-4">Social App</h1>
 
-<router-outlet></router-outlet>
+  <nav class="mb-4">
+    <a
+      routerLink="/create-post"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="btn nav-btn btn-outline-secondary me-2"
+    >
+      Create Post
+    </a>
+
+    <a
+      routerLink="/all-posts"
+      routerLinkActive="active"
+      class="btn nav-btn btn-outline-secondary me-2"
+    >
+      All Posts
+    </a>
+
+    <a
+      routerLink="/search-posts"
+      routerLinkActive="active"
+      class="btn nav-btn btn-outline-secondary"
+    >
+      Search Posts
+    </a>
+  </nav>
+
+  <router-outlet></router-outlet>
+</div>
