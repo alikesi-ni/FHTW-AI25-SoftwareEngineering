@@ -1,63 +1,103 @@
-# 🗂 Social-App — Database Check (Step 1)
+# 📱 Social App — Full-Stack Project  
+FastAPI backend • PostgreSQL • Angular frontend • Image uploads
 
-This is the first step of developing a simple social media app.  
-It connects to a **PostgreSQL** database and checks whether the table **`post`** exists in the `public` schema, printing how many entries it contains.
+This project implements a small social media application with:
 
-# 🗂 Social-App — REST API + PostgreSQL (Step 2)
-
-This project implements a simple social media backend using **FastAPI**, **PostgreSQL**, and **psycopg**.  
-You can create posts, fetch posts, search posts, and retrieve the latest entry.
-
-The API automatically exposes a full **OpenAPI specification** and documentation UI.
-
----
-
-## 🚀 Features
-
-- ✔ Create a post (`POST /posts`)
-- ✔ Get post by ID (`GET /posts/{id}`)
-- ✔ Get the latest post (`GET /posts/latest`)
-- ✔ Search posts (`GET /posts/search?q=...`)
-- ✔ Automatic OpenAPI docs (`/docs` & `/openapi.json`)
-- ✔ PostgreSQL database with init script
-- ✔ Image validation (image must exist inside `/uploads`)
+- A **FastAPI backend** (Python 3.14, uv, PostgreSQL)
+- An **Angular frontend** (Node.js, npm, Bootstrap)
+- Image upload support  
+- Search & filter API  
+- Automated tests + GitHub Actions CI
 
 ---
 
-## 📦 Requirements
+# 🚀 Features
 
-- Python 3.12+
-- `fastapi`, `uvicorn`, `psycopg`
-- Docker (for PostgreSQL)
+### **Backend (FastAPI)**
+- ✔ Create posts with **comment**, **image**, or both  
+- ✔ Query all posts (`GET /posts`)
+- ✔ Filter by user (`GET /posts?user=alice`)
+- ✔ Limit & sorting (`limit`, `order_by`, `order_dir`)
+- ✔ Search (`GET /posts/search?q=...`)
+- ✔ Image uploads stored in `/uploads`
+- ✔ Static image serving (`/static/<filename>`)
+- ✔ PostgreSQL storage
+- ✔ Clear service-layer logic
+- ✔ Full OpenAPI schema automatically generated
+
+### **Frontend (Angular)**
+- ✔ Create post (with image upload)  
+- ✔ List all posts  
+- ✔ Search posts by user  
+- ✔ Reusable `app-post-card` component  
+- ✔ Clean Bootstrap UI  
 
 ---
 
-## 🚀 Getting Started
+# 🧱 Project Structure
 
-### 1️⃣ Install **uv**
+```
+project-root/
+├─ .github/
+├─ app/                        # FastAPI backend package
+│  ├─ __init__.py
+│  ├─ main.py                  # FastAPI app
+│  └─ service.py               # DB + business logic
+├─ db/
+│  └─ init.sql                 # creates post table
+├─ frontend/
+│  └─ social-frontend/         # Angular project root
+│     ├─ src/
+│     ├─ angular.json
+│     ├─ package.json
+│     └─ ...                   # other Angular files
+├─ tests/
+│  ├─ conftest.py
+│  ├─ test_api_posts.py
+│  └─ test_service_posts.py
+├─ uploads/                    # image files served via /static
+│  ├─ charmander.png
+│  ├─ bulbasaur.png
+│  └─ squirtle.png
+├─ .env.example
+├─ .gitignore
+├─ .python-version
+├─ docker-compose.yml
+├─ main.py                     # old step-1 script (DB check)
+├─ openapi.yml
+├─ pyproject.toml
+├─ pytest.ini
+├─ README.md
+├─ team_log.md
+└─ uv.lock
 
-**macOS / Linux**
+```
+
+---
+
+# ⚙️ Backend Setup
+
+## 1️⃣ Install uv
+
+**Linux / macOS**
 ```bash
 curl -Ls https://astral.sh/uv/install.sh | sh
-# Restart your shell or reload your profile so `uv` is on PATH
-uv --version
 ```
 
-**Windows (PowerShell)**
+**Windows PowerShell**
 ```powershell
 iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
-uv --version
 ```
 
-> If `uv` isn’t found after install, restart your terminal and ensure its bin directory is on your PATH.
+Verify:
+```bash
+uv --version
+```
 
 ---
 
-### 2️⃣ Install **Python 3.14** (managed by uv)
+## 2️⃣ Install Python 3.14
 
-This project targets **Python 3.14**.
-
-Run this once:
 ```bash
 uv python install 3.14
 uv python pin 3.14
@@ -65,106 +105,119 @@ uv python pin 3.14
 
 Verify:
 ```bash
-uv run python --version   # should print Python 3.14.x
+uv run python --version
 ```
-
-> ⚠️ `uv sync --locked` will **not** automatically install Python 3.14 — you must install/pin it first.
 
 ---
 
-### 3️⃣ Install Dependencies
+## 3️⃣ Install backend dependencies
 
-Always use the lockfile for reproducible installs:
 ```bash
 uv sync --locked
 ```
 
-This installs exactly the same dependency versions recorded in `uv.lock`.
-
 ---
 
-### 4️⃣ Configure the Environment & Database
+## 4️⃣ Start PostgreSQL
 
-Copy the example environment file and adjust the values as needed:
-```bash
-cp .env.example .env
-```
+Using Docker:
 
-Example `.env` contents:
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=social
-DB_USER=admin
-DB_PASSWORD=password
-```
-
-Start the PostgreSQL container:
 ```bash
 docker compose up -d db
 ```
 
+This loads `db/init.sql` automatically and creates the `post` table.
+
 ---
 
-### 5️⃣ Run the Application
+## 5️⃣ Run the backend API
+
+Development server:
 
 ```bash
-uv run python main.py
-```
-
-Example output:
-```
-Table 'post' exists and contains 0 entries.
-```
-
----
-
-### Run the Backend (FastAPI)
-
-To start the backend server using **uvicorn**, run:
-
-``` bash
 uv run uvicorn app.main:app --reload
 ```
 
-This launches your FastAPI application with auto-reload enabled for
-development.
+Open:
 
-Example output:
-
-    INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-    INFO:     Started reloader process using WatchFiles
-    INFO:     Started server process
-    INFO:     Application startup complete.
-
-You can now open:
-
--   API Docs: http://localhost:8000/docs
--   Redoc: http://localhost:8000/redoc
+- API Docs → http://localhost:8000/docs  
+- Images → http://localhost:8000/static/<filename>
 
 ---
 
-## 🗂 Project Structure
+# 💻 Frontend Setup (Angular)
 
-```
-social-app/
-├─ .env.example
-├─ .gitignore
-├─ .python-version
-├─ docker-compose.yml
-├─ main.py
-├─ pyproject.toml
-├─ uv.lock
-├─ db/
-│  └─ init.sql
-└─ README.md
+## 1️⃣ Install Node.js
+
+Download from:
+
+👉 https://nodejs.org
+
+Verify:
+
+```bash
+node -v
+npm -v
 ```
 
 ---
 
-## 💡 Notes
+## 2️⃣ Install Angular CLI
 
-- Keep `uv.lock` **committed** — it guarantees everyone installs the same versions.  
-- Always use `uv sync --locked`.  
-- The app currently just checks whether the `post` table exists and counts rows.  
-- Future steps can extend this to actually insert and fetch posts.
+```bash
+npm install -g @angular/cli
+```
+
+---
+
+## 3️⃣ Install frontend dependencies
+
+```bash
+cd frontend/social-frontend
+npm install
+```
+
+---
+
+## 4️⃣ Run the Angular dev server
+
+```bash
+ng serve --open
+```
+
+Frontend: http://localhost:4200  
+Backend: http://localhost:8000
+
+---
+
+# 🧪 Running Tests
+
+Backend tests:
+
+```bash
+uv run pytest
+```
+
+---
+
+# 🖼 Image Handling
+
+- Images saved to `uploads/`
+- Served via `/static/<filename>`
+- Angular renders via:
+
+```html
+<img [src]="'http://localhost:8000/static/' + post.image">
+```
+
+---
+
+# 🎯 Summary
+
+You now have:
+
+- ✔ FastAPI backend with image uploads  
+- ✔ Angular frontend with Bootstrap  
+- ✔ PostgreSQL database  
+- ✔ Full test suite + CI  
+- ✔ Working full-stack project  
