@@ -20,8 +20,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: false
           tags: social-backend:test
+          push: false
+          load: true
 
       - name: Run container
         run: |
@@ -30,9 +31,7 @@ jobs:
 
       - name: Check API health
         run: |
-          echo "Checking if /docs is accessible..."
           curl -f http://localhost:8000/docs > /dev/null
-          echo "Backend is healthy ✔"
 
       - name: Stop container
         if: always()
