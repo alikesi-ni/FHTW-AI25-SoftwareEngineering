@@ -17,6 +17,8 @@ wheels/
 
 # env files
 .env
+.env.local
+.env.docker
 
 # Local DB containers
 db_data/

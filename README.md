@@ -13,7 +13,7 @@ This project implements a small social media application with:
 
 # 🚀 Features
 
-### **Backend (FastAPI)**
+## **Backend (FastAPI)**
 - ✔ Create posts with **comment**, **image**, or both  
 - ✔ Query all posts (`GET /posts`)
 - ✔ Filter by user (`GET /posts?user=alice`)
@@ -25,7 +25,7 @@ This project implements a small social media application with:
 - ✔ Clear service-layer logic
 - ✔ Full OpenAPI schema automatically generated
 
-### **Frontend (Angular)**
+## **Frontend (Angular)**
 - ✔ Create post (with image upload)  
 - ✔ List all posts  
 - ✔ Search posts by user  
@@ -36,55 +36,100 @@ This project implements a small social media application with:
 
 # 🧱 Project Structure
 
-```
+```text
 project-root/
 ├─ .github/
 ├─ app/                        # FastAPI backend package
 │  ├─ __init__.py
-│  ├─ main.py                  # FastAPI app
-│  └─ service.py               # DB + business logic
+│  ├─ main.py
+│  └─ service.py
 ├─ db/
-│  └─ init.sql                 # creates post table
+│  └─ init.sql
 ├─ frontend/
-│  └─ social-frontend/         # Angular project root
+│  └─ social-frontend/
 │     ├─ src/
 │     ├─ angular.json
 │     ├─ package.json
-│     └─ ...                   # other Angular files
+│     └─ ...
 ├─ tests/
 │  ├─ conftest.py
 │  ├─ test_api_posts.py
 │  └─ test_service_posts.py
-├─ uploads/                    # image files served via /static
+├─ uploads/
 │  ├─ charmander.png
 │  ├─ bulbasaur.png
 │  └─ squirtle.png
-├─ .env.example
+├─ .env.local.example
+├─ .env.docker.example
 ├─ .gitignore
 ├─ .python-version
 ├─ docker-compose.yml
-├─ main.py                     # old step-1 script (DB check)
+├─ main.py
 ├─ openapi.yml
 ├─ pyproject.toml
 ├─ pytest.ini
 ├─ README.md
 ├─ team_log.md
 └─ uv.lock
-
 ```
 
 ---
 
 # ⚙️ Backend Setup
 
+You can run the backend in two ways:
+
+- **Option A:** Local development using uv  
+- **Option B:** Fully containerized using Docker / docker-compose
+
+---
+
+# 0️⃣ Prepare environment files
+
+Two example environment files are provided:
+
+- `.env.local.example` → for local development  
+- `.env.docker.example` → for docker-compose
+
+Create real env files:
+
+```bash
+cp .env.local.example .env.local
+cp .env.docker.example .env.docker
+```
+
+### Example `.env.local`
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=social
+DB_USER=admin
+DB_PASSWORD=password
+IMAGE_ROOT=uploads
+```
+
+### Example `.env.docker`
+```env
+DB_HOST=db
+DB_PORT=5432
+DB_NAME=social
+DB_USER=admin
+DB_PASSWORD=password
+IMAGE_ROOT=/app/uploads
+```
+
+---
+
+# 🔹 Option A — Local Development (uv + local PostgreSQL)
+
 ## 1️⃣ Install uv
 
-**Linux / macOS**
+Linux / macOS:
 ```bash
 curl -Ls https://astral.sh/uv/install.sh | sh
 ```
 
-**Windows PowerShell**
+Windows PowerShell:
 ```powershell
 iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
 ```
@@ -93,8 +138,6 @@ Verify:
 ```bash
 uv --version
 ```
-
----
 
 ## 2️⃣ Install Python 3.14
 
@@ -108,40 +151,48 @@ Verify:
 uv run python --version
 ```
 
----
-
 ## 3️⃣ Install backend dependencies
 
 ```bash
 uv sync --locked
 ```
 
----
-
-## 4️⃣ Start PostgreSQL
-
-Using Docker:
+## 4️⃣ Start PostgreSQL (using docker-compose)
 
 ```bash
-docker compose up -d db
+docker compose --env-file .env.local up -d db
 ```
 
-This loads `db/init.sql` automatically and creates the `post` table.
+## 5️⃣ Run the backend API locally
 
----
-
-## 5️⃣ Run the backend API
-
-Development server:
+Make sure `.env.local` is loaded, then:
 
 ```bash
 uv run uvicorn app.main:app --reload
 ```
 
-Open:
+Open:  
+- **API Docs:** http://localhost:8000/docs  
+- **Images:** http://localhost:8000/static/<filename>
 
-- API Docs → http://localhost:8000/docs  
-- Images → http://localhost:8000/static/<filename>
+---
+
+# 🔹 Option B — Backend in Docker (Production‑style)
+
+## 1️⃣ Build the backend image
+```bash
+docker build -t social-backend .
+```
+
+## 2️⃣ Start backend + DB
+```bash
+docker compose --env-file .env.docker up -d
+```
+
+## 3️⃣ Access the backend
+- API: http://localhost:8000  
+- Docs: http://localhost:8000/docs  
+- Images: http://localhost:8000/static/<filename>
 
 ---
 
@@ -149,50 +200,36 @@ Open:
 
 ## 1️⃣ Install Node.js
 
-Download from:
-
-👉 https://nodejs.org
+https://nodejs.org/
 
 Verify:
-
 ```bash
 node -v
 npm -v
 ```
 
----
-
 ## 2️⃣ Install Angular CLI
-
 ```bash
 npm install -g @angular/cli
 ```
 
----
-
-## 3️⃣ Install frontend dependencies
-
+## 3️⃣ Install dependencies
 ```bash
 cd frontend/social-frontend
 npm install
 ```
 
----
-
-## 4️⃣ Run the Angular dev server
-
+## 4️⃣ Run dev server
 ```bash
 ng serve --open
 ```
 
 Frontend: http://localhost:4200  
-Backend: http://localhost:8000
+Backend: http://localhost:8000  
 
 ---
 
 # 🧪 Running Tests
-
-Backend tests:
 
 ```bash
 uv run pytest
@@ -200,11 +237,11 @@ uv run pytest
 
 ---
 
-# 🖼 Image Handling
+# 🖼️ Image Handling
 
 - Images saved to `uploads/`
 - Served via `/static/<filename>`
-- Angular renders via:
+- Angular usage:
 
 ```html
 <img [src]="'http://localhost:8000/static/' + post.image">
@@ -216,8 +253,9 @@ uv run pytest
 
 You now have:
 
-- ✔ FastAPI backend with image uploads  
-- ✔ Angular frontend with Bootstrap  
-- ✔ PostgreSQL database  
-- ✔ Full test suite + CI  
-- ✔ Working full-stack project  
+✔ FastAPI backend with image uploads  
+✔ Angular frontend  
+✔ PostgreSQL database  
+✔ Environment-specific configuration  
+✔ Full test suite + CI  
+✔ Optional Dockerized backend
