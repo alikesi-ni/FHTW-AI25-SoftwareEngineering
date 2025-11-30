@@ -4,7 +4,7 @@ services:
   db:
     image: postgres:16
     container_name: social-db-postgres
-    env_file: .env
+    env_file: .env.docker
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -23,12 +23,14 @@ services:
   backend:
     build: .
     container_name: social-backend
-    env_file: .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    env_file: .env.docker
     ports:
       - "8000:8000"
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./uploads:/app/uploads
 
 volumes:
   db_data:

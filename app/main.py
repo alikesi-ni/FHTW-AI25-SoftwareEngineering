@@ -21,9 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
+IMAGE_ROOT = os.getenv("IMAGE_ROOT", "uploads")
+os.makedirs(IMAGE_ROOT, exist_ok=True)
+app.mount("/static", StaticFiles(directory=IMAGE_ROOT), name="static")
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 
@@ -84,7 +84,7 @@ async def create_post(
             ext = ".png"
 
         filename = f"{uuid.uuid4().hex}{ext}"
-        file_path = os.path.join(UPLOAD_DIR, filename)
+        file_path = os.path.join(IMAGE_ROOT, filename)
 
         try:
             contents = await image.read()
