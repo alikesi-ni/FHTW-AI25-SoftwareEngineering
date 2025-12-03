@@ -8,4 +8,7 @@ CREATE TABLE IF NOT EXISTS post (
   -- At least one of comment or image must be present
   CONSTRAINT post_comment_or_image
     CHECK (comment IS NOT NULL OR image IS NOT NULL)
+
+  -- 280-character limit on comments
+  CONSTRAINT post_comment_length CHECK (char_length(comment) <= 280),
 );
