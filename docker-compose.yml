@@ -32,5 +32,15 @@ services:
     volumes:
       - ./uploads:/app/uploads
 
+  frontend:
+    build:
+      context: ./frontend/social-frontend
+      dockerfile: Dockerfile
+    container_name: social-frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
 volumes:
   db_data:
