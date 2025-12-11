@@ -26,13 +26,5 @@ RUN uv sync --locked --no-dev
 # Expose FastAPI port
 EXPOSE 8000
 
-# Default envs (overridden by docker-compose .env.local/env_file)
-ENV DB_HOST=db \
-    DB_PORT=5432 \
-    DB_NAME=social \
-    DB_USER=admin \
-    DB_PASSWORD=password \
-    IMAGE_ROOT=/app/uploads
-
 # Start FastAPI app
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

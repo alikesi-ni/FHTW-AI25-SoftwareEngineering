@@ -13,7 +13,7 @@ export interface CreatePostResponse {
 })
 export class PostService {
 
-  private apiUrl = 'http://localhost:8000';
+  private apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
 
