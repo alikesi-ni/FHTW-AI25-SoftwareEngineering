@@ -11,6 +11,8 @@ import app.service as service
 import os
 import uuid
 
+from app import queue
+
 app = FastAPI()
 
 app.add_middleware(
@@ -22,7 +24,12 @@ app.add_middleware(
 )
 
 IMAGE_ROOT = os.getenv("IMAGE_ROOT", "uploads")
-os.makedirs(IMAGE_ROOT, exist_ok=True)
+ORIGINAL_DIR = os.path.join(IMAGE_ROOT, "original")
+REDUCED_DIR = os.path.join(IMAGE_ROOT, "reduced")
+
+os.makedirs(ORIGINAL_DIR, exist_ok=True)
+os.makedirs(REDUCED_DIR, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=IMAGE_ROOT), name="static")
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
@@ -84,7 +91,7 @@ async def create_post(
             ext = ".png"
 
         filename = f"{uuid.uuid4().hex}{ext}"
-        file_path = os.path.join(IMAGE_ROOT, filename)
+        file_path = os.path.join(ORIGINAL_DIR, filename)
 
         try:
             contents = await image.read()
@@ -99,14 +106,20 @@ async def create_post(
     # Now store in DB via service layer
     try:
         post_id = service.add_post(
-            image=filename,
+            image_filename=filename,
             comment=comment,
             username=username,
         )
-        # you can also include image_url if you like
-        response: dict[str, Any] = {"id": post_id}
+
         if filename is not None:
-            response["image_path"] = file_path
+            queue.publish_resize_job(filename)
+
+        response: dict[str, Any] = {"id": post_id}
+        # optionally return URLs rather than host paths:
+        if filename is not None:
+            response["original_url"] = f"/static/original/{filename}"
+            # reduced may not exist yet
+            response["reduced_url"] = f"/static/reduced/{filename}"
         return response
     except FileNotFoundError as e:
         # Should not happen now since we just saved; but keep it

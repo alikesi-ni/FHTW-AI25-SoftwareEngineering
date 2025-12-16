@@ -30,39 +30,39 @@ def _resolve_under_root(image_rel: str) -> Path:
     return p
 
 
-def add_post(image: Optional[str], comment: Optional[str], username: str) -> int:
+def add_post(image_filename: Optional[str], comment: Optional[str], username: str) -> int:
     """
     Insert a post enforcing:
     - username is required (non-empty)
-    - at least one of (image, comment) must be non-empty
-    - if image is given, the file must exist under IMAGE_ROOT
+    - at least one of (image_filename, comment) must be non-empty
+    - if image_filename is given, the file must exist under IMAGE_ROOT/original
     """
 
     # Normalize inputs
     username = (username or "").strip()
-    image = (image or "").strip() or None
+    image_filename = (image_filename or "").strip() or None
     comment = (comment or "").strip() or None
 
     if not username:
         raise ValueError("username is required")
 
-    if image is None and comment is None:
-        raise ValueError("Either comment or image must be provided")
+    if image_filename is None and comment is None:
+        raise ValueError("Either comment or image_filename must be provided")
 
     # If an image filename is provided, verify the file exists
-    if image is not None:
-        img_abs = _resolve_under_root(image)
+    if image_filename is not None:
+        img_abs = _resolve_under_root(f"original/{image_filename}")
         if not img_abs.exists():
             raise FileNotFoundError(f"Image not found: {img_abs}")
 
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO post (image, comment, username, created_at)
+            INSERT INTO post (image_filename, comment, username, created_at)
             VALUES (%s, %s, %s, %s)
             RETURNING id
             """,
-            (image, comment, username, datetime.utcnow()),
+            (image_filename, comment, username, datetime.utcnow()),
         )
         (post_id,) = cur.fetchone()
         return post_id
@@ -83,7 +83,7 @@ def search_posts(query: str):
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, image, comment, username, created_at
+            SELECT id, image_filename, comment, username, created_at
             FROM post
             WHERE comment ILIKE %s
                OR username ILIKE %s
@@ -96,7 +96,7 @@ def search_posts(query: str):
         return [
             {
                 "id": r[0],
-                "image": r[1],
+                "image_filename": r[1],
                 "comment": r[2],
                 "username": r[3],
                 "created_at": r[4],
@@ -119,9 +119,9 @@ def get_posts(
     order_dir_sql = order_dir_map.get(order_dir.lower(), "DESC")
 
     base_sql = """
-        SELECT id, image, comment, username, created_at
-        FROM post
-    """
+               SELECT id, image_filename, image_status, comment, username, created_at
+               FROM post \
+               """
 
     conditions = []
     params = []
@@ -145,10 +145,11 @@ def get_posts(
         return [
             {
                 "id": r[0],
-                "image": r[1],
-                "comment": r[2],
-                "username": r[3],
-                "created_at": r[4],
+                "image_filename": r[1],
+                "image_status": r[2],
+                "comment": r[3],
+                "username": r[4],
+                "created_at": r[5],
             }
             for r in rows
         ]
