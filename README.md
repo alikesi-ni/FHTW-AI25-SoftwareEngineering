@@ -1,36 +1,45 @@
 # 📱 Social App — Full-Stack Project  
-FastAPI backend • PostgreSQL • Angular frontend • Image uploads
+FastAPI backend • PostgreSQL • Angular frontend • RabbitMQ worker • Image uploads
 
 This project implements a small social media application with:
 
-- A **FastAPI backend** (Python 3.14, uv, PostgreSQL)
-- An **Angular frontend** (Node.js, npm, Bootstrap)
-- Image upload support  
-- Search & filter API  
+- FastAPI backend (Python 3.12+, uv, SQLAlchemy, PostgreSQL)
+- Angular frontend (Node.js, Angular, Bootstrap)
+- Asynchronous image resizing via RabbitMQ + worker
+- Original + reduced image storage
 - Automated tests + GitHub Actions CI
 
 ---
 
 # 🚀 Features
 
-## **Backend (FastAPI)**
-- ✔ Create posts with **comment**, **image**, or both  
-- ✔ Query all posts (`GET /posts`)
-- ✔ Filter by user (`GET /posts?user=alice`)
-- ✔ Limit & sorting (`limit`, `order_by`, `order_dir`)
-- ✔ Search (`GET /posts/search?q=...`)
-- ✔ Image uploads stored in `/uploads`
-- ✔ Static image serving (`/static/<filename>`)
-- ✔ PostgreSQL storage
-- ✔ Clear service-layer logic
-- ✔ Full OpenAPI schema automatically generated
+## Backend (FastAPI)
+- Create posts with content, image, or both
+- Query all posts (`GET /posts`)
+- Filter by user (`GET /posts?user=alice`)
+- Limit & sorting (`limit`, `order_by`, `order_dir`)
+- Search (`GET /posts/search?q=...`)
+- Multipart image uploads
+- Static image serving:
+  - `/static/original/<filename>`
+  - `/static/reduced/<filename>`
+- PostgreSQL persistence (SQLAlchemy)
+- OpenAPI schema (`/docs`)
+- Image status tracking (`PENDING | READY | FAILED`)
 
-## **Frontend (Angular)**
-- ✔ Create post (with image upload)  
-- ✔ List all posts  
-- ✔ Search posts by user  
-- ✔ Reusable `app-post-card` component  
-- ✔ Clean Bootstrap UI  
+## Image Worker
+- RabbitMQ-based background processing
+- Resizes images (max width 512)
+- Removes transparency by compositing onto a white background (for PNGs with alpha)
+- Writes reduced images to `uploads/reduced/`
+- Updates `image_status` in the database
+
+## Frontend (Angular)
+- Create posts with image upload
+- Default display uses the reduced image
+- Click to view the full-size image (modal/lightbox)
+- Post list + user filter
+- Bootstrap UI
 
 ---
 
@@ -38,224 +47,191 @@ This project implements a small social media application with:
 
 ```text
 project-root/
-├─ .github/
-├─ app/                        # FastAPI backend package
-│  ├─ __init__.py
-│  ├─ main.py
-│  └─ service.py
-├─ db/
-│  └─ init.sql
+├─ backend/
+│  ├─ app/
+│  │  ├─ __init__.py
+│  │  ├─ main.py
+│  │  ├─ routes.py
+│  │  ├─ service.py
+│  │  ├─ models.py
+│  │  ├─ schemas.py
+│  │  ├─ db.py
+│  │  └─ queue.py
+│  ├─ tests/
+│  ├─ Dockerfile
+│  ├─ pyproject.toml
+│  └─ uv.lock
+│
+├─ worker/
+│  ├─ worker.py
+│  ├─ Dockerfile
+│  ├─ pyproject.toml
+│  └─ uv.lock
+│
 ├─ frontend/
 │  └─ social-frontend/
 │     ├─ src/
-│     ├─ angular.json
 │     ├─ package.json
 │     └─ ...
-├─ tests/
-│  ├─ conftest.py
-│  ├─ test_api_posts.py
-│  └─ test_service_posts.py
+│
+├─ db/
+│  └─ init.sql
+│
 ├─ uploads/
-│  ├─ charmander.png
-│  ├─ bulbasaur.png
-│  └─ squirtle.png
+│  ├─ original/
+│  └─ reduced/
+│
 ├─ .env.local.example
 ├─ .env.docker.example
-├─ .gitignore
-├─ .python-version
 ├─ docker-compose.yml
-├─ main.py
-├─ openapi.yml
-├─ pyproject.toml
-├─ pytest.ini
 ├─ README.md
-├─ team_log.md
-└─ uv.lock
+└─ team_log.md
 ```
 
 ---
 
-# ⚙️ Backend Setup
+# ⚙️ Environment Configuration
 
-You can run the backend in two ways:
+Two environment setups are supported:
 
-- **Option A:** Local development using uv  
-- **Option B:** Fully containerized using Docker / docker-compose
+- `.env.local` for local development (backend/frontend on host)
+- `.env.docker` for docker-compose networking
 
----
-
-# 0️⃣ Prepare environment files
-
-Two example environment files are provided:
-
-- `.env.local.example` → for local development  
-- `.env.docker.example` → for docker-compose
-
-Create real env files:
+Create them from the examples:
 
 ```bash
 cp .env.local.example .env.local
 cp .env.docker.example .env.docker
 ```
 
-### Example `.env.local`
+Example `.env.local`:
+
 ```env
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=social
 DB_USER=admin
 DB_PASSWORD=password
+
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+RABBITMQ_QUEUE=image_resize
+
 IMAGE_ROOT=uploads
 ```
 
-### Example `.env.docker`
+Example `.env.docker`:
+
 ```env
 DB_HOST=db
 DB_PORT=5432
 DB_NAME=social
 DB_USER=admin
 DB_PASSWORD=password
+
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+RABBITMQ_QUEUE=image_resize
+
 IMAGE_ROOT=/app/uploads
 ```
 
 ---
 
-# 🔹 Option A — Local Development (uv + local PostgreSQL)
+# 🔹 Local Development (backend + frontend)
 
-## 1️⃣ Install uv
+This workflow is useful when you want to debug the backend and/or frontend locally, while still using Docker for infrastructure.
 
-Linux / macOS:
-```bash
-curl -Ls https://astral.sh/uv/install.sh | sh
-```
-
-Windows PowerShell:
-```powershell
-iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
-```
-
-Verify:
-```bash
-uv --version
-```
-
-## 2️⃣ Install Python 3.14
+## 1) Start infrastructure (PostgreSQL + RabbitMQ)
 
 ```bash
-uv python install 3.14
-uv python pin 3.14
+docker compose --env-file .env.local up -d db rabbitmq
 ```
 
-Verify:
-```bash
-uv run python --version
-```
-
-## 3️⃣ Install backend dependencies
+## 2) Run backend locally (uv)
 
 ```bash
-uv sync --locked
-```
-
-## 4️⃣ Start PostgreSQL (using docker-compose)
-
-```bash
-docker compose --env-file .env.local up -d db
-```
-
-## 5️⃣ Run the backend API locally
-
-Make sure `.env.local` is loaded, then:
-
-```bash
+cd backend
+uv sync --frozen
 uv run uvicorn app.main:app --reload
 ```
 
-Open:  
-- **API Docs:** http://localhost:8000/docs  
-- **Images:** http://localhost:8000/static/<filename>
+Backend:
+- http://localhost:8000
+- http://localhost:8000/docs
 
----
+## 3) Run worker (choose one)
 
-# 🔹 Option B — Backend in Docker (Production‑style)
-
-## 1️⃣ Build the backend image
+### Option A: run worker in Docker (recommended)
 ```bash
-docker build -t social-backend .
+docker compose --env-file .env.docker up -d worker
 ```
 
-## 2️⃣ Start backend + DB
+### Option B: run worker locally (uv)
 ```bash
-docker compose --env-file .env.docker up -d
+cd worker
+uv sync --frozen
+uv run python worker.py
 ```
 
-## 3️⃣ Access the backend
-- API: http://localhost:8000  
-- Docs: http://localhost:8000/docs  
-- Images: http://localhost:8000/static/<filename>
+## 4) Run frontend locally
 
----
-
-# 💻 Frontend Setup (Angular)
-
-## 1️⃣ Install Node.js
-
-https://nodejs.org/
-
-Verify:
-```bash
-node -v
-npm -v
-```
-
-## 2️⃣ Install Angular CLI
-```bash
-npm install -g @angular/cli
-```
-
-## 3️⃣ Install dependencies
 ```bash
 cd frontend/social-frontend
 npm install
-```
-
-## 4️⃣ Run dev server
-```bash
 ng serve --open
 ```
 
-Frontend: http://localhost:4200  
-Backend: http://localhost:8000  
+Frontend:
+- http://localhost:4200
+
+The frontend should call the backend at:
+- http://localhost:8000
+
+---
+
+# 🔹 Full Docker Setup (all services)
+
+```bash
+docker compose --env-file .env.docker up --build
+```
+
+Services started:
+- PostgreSQL
+- RabbitMQ
+- Backend API
+- Worker
+- Frontend (nginx)
 
 ---
 
 # 🧪 Running Tests
 
+Run backend tests from the backend folder (matches CI):
+
 ```bash
-uv run pytest
+cd backend
+uv run pytest -q
 ```
 
 ---
 
 # 🖼️ Image Handling
 
-- Images saved to `uploads/`
-- Served via `/static/<filename>`
-- Angular usage:
-
-```html
-<img [src]="'http://localhost:8000/static/' + post.image">
-```
+- Originals: `uploads/original/<filename>`
+- Reduced: `uploads/reduced/<filename>`
+- Backend serves both under `/static/`
+- Frontend displays reduced by default and opens the original in a modal on click
 
 ---
 
 # 🎯 Summary
 
-You now have:
-
-✔ FastAPI backend with image uploads  
-✔ Angular frontend  
-✔ PostgreSQL database  
-✔ Environment-specific configuration  
-✔ Full test suite + CI  
-✔ Optional Dockerized backend
+- FastAPI backend + SQLAlchemy + Postgres
+- Angular frontend
+- RabbitMQ + worker for background image processing
+- Tests and CI workflows

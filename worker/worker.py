@@ -11,7 +11,7 @@ from sqlalchemy.engine import Engine
 
 
 def amqp_params() -> pika.ConnectionParameters:
-    host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    host = os.getenv("RABBITMQ_HOST", "localhost")
     port = int(os.getenv("RABBITMQ_PORT", "5672"))
     user = os.getenv("RABBITMQ_USER", "guest")
     password = os.getenv("RABBITMQ_PASSWORD", "guest")
@@ -20,7 +20,7 @@ def amqp_params() -> pika.ConnectionParameters:
 
 
 def db_url() -> str:
-    host = os.getenv("DB_HOST", "db")
+    host = os.getenv("DB_HOST", "localhost")
     port = os.getenv("DB_PORT", "5432")
     name = os.getenv("DB_NAME", "social")
     user = os.getenv("DB_USER", "admin")
