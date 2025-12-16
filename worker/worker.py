@@ -42,19 +42,33 @@ def ensure_dirs(image_root: Path) -> tuple[Path, Path]:
 
 
 def resize_image(src: Path, dst: Path, max_width: int = 512) -> None:
-    # Keep aspect ratio, constrain by width (and height implicitly)
     with Image.open(src) as im:
-        im = im.convert("RGB") if im.mode in ("P", "RGBA") else im
-        w, h = im.size
-        if w <= max_width:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            im.save(dst, quality=85, optimize=True)
-            return
+        # Ensure we have an alpha channel if the source is paletted/translucent
+        if im.mode in ("P", "RGBA", "LA"):
+            im = im.convert("RGBA")
 
-        new_h = int(h * (max_width / w))
-        im = im.resize((max_width, new_h))
+            # Flatten transparency onto white
+            white_bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+            im = Image.alpha_composite(white_bg, im).convert("RGB")
+        else:
+            # No transparency; normalize to RGB for consistent saving
+            im = im.convert("RGB")
+
+        w, h = im.size
+        if w > max_width:
+            new_h = int(h * (max_width / w))
+            im = im.resize((max_width, new_h), Image.LANCZOS)
+
         dst.parent.mkdir(parents=True, exist_ok=True)
-        im.save(dst, quality=85, optimize=True)
+
+        # Save in the same extension as dst (png stays png, jpg stays jpg)
+        ext = dst.suffix.lower()
+        if ext in (".jpg", ".jpeg"):
+            im.save(dst, quality=85, optimize=True)
+        else:
+            # PNG (or anything else) as PNG
+            im.save(dst, format="PNG", optimize=True)
+
 
 
 def wait_for_db(engine: Engine) -> None:
