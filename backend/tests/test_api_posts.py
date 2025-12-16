@@ -69,13 +69,13 @@ def test_create_post_with_image_via_api(client: TestClient, monkeypatch):
 
 
 def test_create_post_requires_username(client: TestClient):
-    resp = client.post("/posts", data={"username": "", "content": "hi"})
+    resp = client.post("/posts", data={"username": "   ", "content": "hi"})
     assert resp.status_code == 400
     assert "username is required" in resp.json()["detail"]
 
 
 def test_create_post_requires_content_or_image(client: TestClient):
-    resp = client.post("/posts", data={"username": "alice", "content": ""})
+    resp = client.post("/posts", data={"username": "alice", "content": "   "})
     assert resp.status_code == 400
     assert "Either content or image must be provided" in resp.json()["detail"]
 
