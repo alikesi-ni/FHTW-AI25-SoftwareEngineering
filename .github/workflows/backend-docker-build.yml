@@ -15,6 +15,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build backend image (used for smoke test)
       - name: Build backend Docker image (no push)
         uses: docker/build-push-action@v5
         with:
@@ -24,10 +25,32 @@ jobs:
           push: false
           load: true
 
-      - name: Run container
+      # Build frontend image to ensure Dockerfile is valid
+      - name: Build frontend Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/social-frontend
+          file: ./frontend/social-frontend/Dockerfile
+          tags: social-frontend:test
+          push: false
+          load: false
+
+      # Build worker image to ensure Dockerfile is valid
+      - name: Build worker Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./worker
+          file: ./worker/Dockerfile
+          tags: social-worker:test
+          push: false
+          load: false
+
+      # Run backend container and do a simple health check
+      - name: Run backend container
         run: |
-          docker run -d --name backend -p 8000:8000 \
+          docker run -d --name backend \
             -e IMAGE_ROOT=/app/uploads \
+            -p 8000:8000 \
             social-backend:test
           sleep 5
 

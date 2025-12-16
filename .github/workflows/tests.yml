@@ -51,3 +51,46 @@ jobs:
       - name: Run tests (backend)
         working-directory: backend
         run: uv run pytest -q
+
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: frontend/social-frontend
+        run: npm ci
+
+      - name: Build Angular app
+        working-directory: frontend/social-frontend
+        run: npm run build
+
+  worker-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies (worker)
+        working-directory: worker
+        run: uv sync --frozen
+
+      - name: Check worker Python files compile
+        working-directory: worker
+        run: uv run python -m compileall .
