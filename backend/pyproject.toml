@@ -1,19 +1,24 @@
 [project]
-name = "social-app"
+name = "social-backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "FastAPI backend for the social app"
 requires-python = ">=3.14"
 dependencies = [
   "fastapi>=0.121.3",
   "uvicorn[standard]>=0.38.0",
+
+  # DB (SQLAlchemy + psycopg)
   "sqlalchemy>=2.0",
   "psycopg[binary]>=3.2",
+
+  # Uploads + queue
   "python-multipart>=0.0.9",
+  "pika>=1.3.2",
 ]
 
 [dependency-groups]
 dev = [
   "pytest>=9.0.0",
-  "httpx>=0.28.1",  # handy for testing FastAPI endpoints
+  "httpx>=0.28.1",
+  "pyyaml>=6.0.2",
 ]

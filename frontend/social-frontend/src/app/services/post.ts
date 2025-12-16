@@ -5,14 +5,14 @@ import { Post } from '../models/post';
 
 export interface CreatePostResponse {
   id: number;
-  image_url?: string; // if you ever return it from backend
+  original_url?: string;
+  reduced_url?: string;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class PostService {
-
   private apiUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
@@ -20,17 +20,21 @@ export class PostService {
   /**
    * Create a post using multipart/form-data.
    * - username: required
-   * - comment: can be empty
+   * - content: can be empty (but then image must be present)
    * - imageFile: optional (can be null)
    */
   createPost(
     username: string,
-    comment: string,
+    content: string,
     imageFile?: File | null
   ): Observable<CreatePostResponse> {
     const formData = new FormData();
     formData.append('username', username);
-    formData.append('comment', comment ?? '');
+
+    const trimmed = (content ?? '').trim();
+    if (trimmed.length > 0) {
+      formData.append('content', trimmed);
+    }
 
     if (imageFile) {
       formData.append('image', imageFile);

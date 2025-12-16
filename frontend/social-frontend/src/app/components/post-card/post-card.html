@@ -2,19 +2,40 @@
   <div class="card-body">
     <p class="text-muted mb-1">ID: {{ post.id }}</p>
 
-    @if (imageUrl) {
+    @if (imgSrc) {
       <div class="mb-3 text-center">
-        <img
-          [src]="imageUrl"
-          alt="Post image {{ post.id }}"
-          class="img-fluid rounded"
-          style="max-height: 200px; object-fit: contain;"
-        />
+        <button
+          type="button"
+          class="img-button"
+          (click)="openLightbox()"
+          [attr.aria-label]="'Open image for post ' + post.id"
+        >
+          <img
+            [src]="imgSrc"
+            (error)="onImgError()"
+            alt="Post image {{ post.id }}"
+            class="img-fluid rounded post-thumb"
+            loading="lazy"
+          />
+          <span class="img-hint">Click to enlarge</span>
+        </button>
+
+        @if (post.image_status === 'PENDING') {
+          <div class="img-processing text-muted">
+            <small>Preview is being generated…</small>
+          </div>
+        }
+
+        @if (post.image_status === 'FAILED') {
+          <div class="img-processing text-muted">
+            <small>Preview generation failed (showing original).</small>
+          </div>
+        }
       </div>
     }
 
-    @if (post.comment) {
-      <p class="mb-2"><strong>Comment:</strong> {{ post.comment }}</p>
+    @if (post.content) {
+      <p class="mb-2"><strong>Content:</strong> {{ post.content }}</p>
     }
 
     <p class="mb-1">
@@ -25,3 +46,20 @@
     </p>
   </div>
 </div>
+
+@if (lightboxOpen && originalUrl) {
+  <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true">
+    <div class="lightbox-inner" (click)="$event.stopPropagation()">
+      <button
+        type="button"
+        class="lightbox-close"
+        (click)="closeLightbox()"
+        aria-label="Close"
+      >
+        ✕
+      </button>
+
+      <img class="lightbox-img" [src]="originalUrl" alt="Full size post image {{ post.id }}" />
+    </div>
+  </div>
+}

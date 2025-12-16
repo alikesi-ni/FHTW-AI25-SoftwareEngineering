@@ -18,20 +18,20 @@
         </div>
       </div>
 
-      <!-- Comment (textarea, optional but required together with image) -->
+      <!-- Content (textarea, optional but required together with image) -->
       <div class="col-12">
-        <label class="form-label" for="comment">Comment</label>
+        <label class="form-label" for="content">Content</label>
         <textarea
-          id="comment"
+          id="content"
           class="form-control"
-          [(ngModel)]="form.comment"
-          name="comment"
+          [(ngModel)]="form.content"
+          name="content"
           rows="4"
           maxlength="280"
           placeholder="What do you want to share?"
         ></textarea>
         <div class="form-text">
-          Up to 280 characters. Either a comment or an image (or both) is required.
+          Up to 280 characters. Either some content or an image (or both) is required.
         </div>
       </div>
 

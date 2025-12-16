@@ -21,7 +21,7 @@ jobs:
           --health-cmd="pg_isready -U admin -d social"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
 
     env:
       DB_HOST: localhost
@@ -29,6 +29,8 @@ jobs:
       DB_NAME: social
       DB_USER: admin
       DB_PASSWORD: password
+      # Make sure tests and service agree on uploads root
+      IMAGE_ROOT: uploads
 
     steps:
       - name: Checkout code
@@ -42,8 +44,10 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies
-        run: uv sync
+      - name: Install dependencies (backend)
+        working-directory: backend
+        run: uv sync --frozen
 
-      - name: Run tests
-        run: uv run pytest
+      - name: Run tests (backend)
+        working-directory: backend
+        run: uv run pytest -q
