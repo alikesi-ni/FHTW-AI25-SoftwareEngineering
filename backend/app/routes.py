@@ -1,11 +1,12 @@
 import os
 import uuid
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
 
 import app.service as service
 from app import queue
+from app.schemas import PostOut
 
 router = APIRouter()
 
@@ -81,7 +82,7 @@ async def create_post(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/posts/search")
+@router.get("/posts/search", response_model=List[PostOut])
 def search_posts(
     q: str = Query(..., title="Search Query", description="Search in post content and usernames"),
 ):
@@ -91,7 +92,7 @@ def search_posts(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/posts")
+@router.get("/posts", response_model=List[PostOut])
 def get_posts(
     user: Optional[str] = Query(None, description="Filter posts by exact username"),
     order_by: str = Query("created_at", pattern="^(created_at|id)$"),
