@@ -20,28 +20,6 @@ services:
       timeout: 3s
       retries: 20
 
-  backend:
-    build: .
-    container_name: social-backend
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file: .env.docker
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./uploads:/app/uploads
-
-  frontend:
-    build:
-      context: ./frontend/social-frontend
-      dockerfile: Dockerfile
-    container_name: social-frontend
-    depends_on:
-      - backend
-    ports:
-      - "4200:80"
-
   rabbitmq:
     image: rabbitmq:3-management
     container_name: social-rabbitmq
@@ -52,10 +30,26 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 5s
       timeout: 5s
       retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: social-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env.docker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
 
   worker:
     build:
@@ -70,6 +64,16 @@ services:
     env_file: .env.docker
     volumes:
       - ./uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend/social-frontend
+      dockerfile: Dockerfile
+    container_name: social-frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
 
 volumes:
   db_data:

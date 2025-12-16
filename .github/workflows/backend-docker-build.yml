@@ -1,11 +1,11 @@
-name: Docker Build & Run Test
+name: Docker Build & Smoke Test Backend
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  docker-build-test:
+  docker-build-smoke:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,24 +15,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (no push)
+      - name: Build backend Docker image (no push)
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           tags: social-backend:test
           push: false
           load: true
 
       - name: Run container
         run: |
-          docker run -d --name backend -p 8000:8000 social-backend:test
-          # give the app a few seconds to start
+          docker run -d --name backend -p 8000:8000 \
+            -e IMAGE_ROOT=/app/uploads \
+            social-backend:test
           sleep 5
 
-      - name: Check API health (/docs)
+      - name: Health check (/docs)
         run: |
-          curl -f http://localhost:8000/docs > /dev/null
+          curl -fsS http://localhost:8000/docs > /dev/null
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs backend
 
       - name: Stop container
         if: always()

@@ -8,12 +8,12 @@ import { PostService } from '../../services/post';
   standalone: true,
   imports: [FormsModule, CommonModule],
   templateUrl: './create-post.html',
-  styleUrls: ['./create-post.css']
+  styleUrls: ['./create-post.css'],
 })
 export class CreatePost {
   form = {
-    comment: '',
-    username: ''
+    content: '',
+    username: '',
   };
 
   selectedFile: File | null = null;
@@ -35,12 +35,12 @@ export class CreatePost {
   }
 
   // Username must be non-empty,
-  // and either a comment or an image (or both) must be present
+  // and either content or an image (or both) must be present
   canSubmit(): boolean {
     const usernameOk = this.form.username.trim().length > 0;
-    const hasComment = this.form.comment.trim().length > 0;
+    const hasContent = this.form.content.trim().length > 0;
     const hasImage = !!this.selectedFile;
-    return usernameOk && (hasComment || hasImage);
+    return usernameOk && (hasContent || hasImage);
   }
 
   submit() {
@@ -48,8 +48,8 @@ export class CreatePost {
     this.result = null;
 
     const username = this.form.username.trim();
-    const comment = this.form.comment.trim();
-    const hasComment = comment.length > 0;
+    const content = this.form.content.trim();
+    const hasContent = content.length > 0;
     const hasImage = !!this.selectedFile;
 
     if (!username) {
@@ -57,32 +57,30 @@ export class CreatePost {
       return;
     }
 
-    if (!hasComment && !hasImage) {
-      this.error = 'Please provide at least a comment or an image.';
+    if (!hasContent && !hasImage) {
+      this.error = 'Please provide at least some content or an image.';
       return;
     }
 
     this.loading = true;
 
-    this.postService
-      .createPost(username, comment, this.selectedFile)
-      .subscribe({
-        next: (res) => {
-          this.loading = false;
-          this.result = `Post created with ID: ${res.id}`;
+    this.postService.createPost(username, content, this.selectedFile).subscribe({
+      next: (res) => {
+        this.loading = false;
+        this.result = `Post created with ID: ${res.id}`;
 
-          // Reset form + file
-          this.form = { comment: '', username: '' };
-          this.selectedFile = null;
-        },
-        error: (err) => {
-          this.loading = false;
-          if (err.error?.detail) {
-            this.error = err.error.detail;
-          } else {
-            this.error = 'Failed to create post. Check backend.';
-          }
+        // Reset form + file
+        this.form = { content: '', username: '' };
+        this.selectedFile = null;
+      },
+      error: (err) => {
+        this.loading = false;
+        if (err.error?.detail) {
+          this.error = err.error.detail;
+        } else {
+          this.error = 'Failed to create post. Check backend.';
         }
-      });
+      },
+    });
   }
 }
