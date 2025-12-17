@@ -91,6 +91,6 @@ jobs:
         working-directory: worker
         run: uv sync --frozen
 
-      - name: Check worker Python files compile
+      - name: Run worker tests
         working-directory: worker
-        run: uv run python -m compileall .
+        run: uv run pytest -q
