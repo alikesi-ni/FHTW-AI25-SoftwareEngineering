@@ -9,5 +9,10 @@ dependencies = [
   "sqlalchemy>=2.0",
 ]
 
+[dependency-groups]
+dev = [
+  "pytest>=9.0.0",
+]
+
 [tool.uv]
 # optional: if you later add dev deps, uv can manage them too
