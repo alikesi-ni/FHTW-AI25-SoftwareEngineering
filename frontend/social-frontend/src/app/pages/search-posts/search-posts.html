@@ -36,7 +36,10 @@
   <h3 class="mb-3">Results</h3>
 
   @for (p of posts; track p.id) {
-    <app-post-card [post]="p"></app-post-card>
+    <app-post-card
+  [post]="p"
+  (generateDescription)="onGenerateDescription($event)"
+></app-post-card>
   }
 }
 

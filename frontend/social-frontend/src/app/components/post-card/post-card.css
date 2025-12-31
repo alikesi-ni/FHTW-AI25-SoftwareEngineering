@@ -24,6 +24,45 @@
   opacity: 0.75;
 }
 
+/* NEW: description area under the image */
+.img-desc-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.img-desc {
+  max-width: 520px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.img-desc-action {
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.img-desc-action:hover {
+  background: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+}
+
+.sparkle {
+  font-size: 14px;
+}
+
 /* Lightbox modal */
 .lightbox {
   position: fixed;

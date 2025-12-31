@@ -32,3 +32,22 @@ def publish_resize_job(filename: str) -> None:
         )
     finally:
         connection.close()
+
+
+def publish_describe_job(post_id: int, filename: str) -> None:
+    queue_name = os.getenv("RABBITMQ_DESCRIBE_QUEUE", "image_describe")
+
+    connection = pika.BlockingConnection(_amqp_params())
+    try:
+        channel = connection.channel()
+        channel.queue_declare(queue=queue_name, durable=True)
+
+        body = json.dumps({"post_id": post_id, "filename": filename}).encode("utf-8")
+        channel.basic_publish(
+            exchange="",
+            routing_key=queue_name,
+            body=body,
+            properties=pika.BasicProperties(delivery_mode=2),
+        )
+    finally:
+        connection.close()

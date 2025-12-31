@@ -7,4 +7,6 @@ export interface Post {
   content: string | null;          // text or null
   username: string;
   created_at: string;              // ISO timestamp from backend
+  image_description: string | null;
+  description_status: 'NONE' | 'PENDING' | 'READY' | 'FAILED';
 }

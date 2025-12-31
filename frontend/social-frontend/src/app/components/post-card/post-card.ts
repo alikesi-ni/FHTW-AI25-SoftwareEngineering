@@ -1,4 +1,4 @@
-import { Component, Input, HostListener } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
 
@@ -12,16 +12,11 @@ import { Post } from '../../models/post';
 export class PostCard {
   @Input({ required: true }) post!: Post;
 
+  @Output() generateDescription = new EventEmitter<number>();
+
   lightboxOpen = false;
 
-  // If reduced image fails to load, we fall back to the original once.
-  imgSrc: string | null = null;
-  private triedFallback = false;
-
-  ngOnChanges() {
-    this.imgSrc = this.thumbUrl;
-    this.triedFallback = false;
-  }
+  private imgFailed = false;
 
   get originalUrl(): string | null {
     if (!this.post.image_filename) return null;
@@ -33,37 +28,50 @@ export class PostCard {
     return `http://localhost:8000/static/reduced/${this.post.image_filename}`;
   }
 
-  // Show reduced by default only when READY; otherwise show original (processing/failed).
-  get thumbUrl(): string | null {
+  // show reduced when READY; otherwise show original as fallback
+  get imgSrc(): string | null {
     if (!this.post.image_filename) return null;
-    if (this.post.image_status === 'READY') return this.reducedUrl;
+
+    if (this.imgFailed) {
+      return this.originalUrl;
+    }
+
+    if (this.post.image_status === 'READY') {
+      return this.reducedUrl;
+    }
+
+    // PENDING/FAILED -> show original (worker may not have reduced yet)
     return this.originalUrl;
   }
 
+  get hasImage(): boolean {
+    return !!this.post.image_filename;
+  }
+
+  get hasImageDescription(): boolean {
+    return !!(this.post as any).image_description;
+  }
+
+  get imageDescription(): string | null {
+    return ((this.post as any).image_description ?? null) as string | null;
+  }
+
   onImgError() {
-    // If reduced isn't there yet (or 404), fall back to original once.
-    if (!this.triedFallback && this.originalUrl && this.imgSrc !== this.originalUrl) {
-      this.triedFallback = true;
-      this.imgSrc = this.originalUrl;
-      return;
-    }
-    // If even original fails, hide image.
-    this.imgSrc = null;
+    this.imgFailed = true;
   }
 
   openLightbox() {
     if (!this.originalUrl) return;
     this.lightboxOpen = true;
-    document.body.style.overflow = 'hidden';
   }
 
   closeLightbox() {
     this.lightboxOpen = false;
-    document.body.style.overflow = '';
   }
 
-  @HostListener('document:keydown.escape')
-  onEsc() {
-    if (this.lightboxOpen) this.closeLightbox();
+  requestDescription(event: MouseEvent) {
+    // don't trigger the image lightbox when clicking this action
+    event.stopPropagation();
+    this.generateDescription.emit(this.post.id);
   }
 }

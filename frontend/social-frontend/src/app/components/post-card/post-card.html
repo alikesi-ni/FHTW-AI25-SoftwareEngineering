@@ -31,6 +31,43 @@
             <small>Preview generation failed (showing original).</small>
           </div>
         }
+
+        <!-- Description / generate row -->
+        <div class="img-desc-row">
+          @if (imageDescription) {
+            <div class="img-desc">
+              {{ imageDescription }}
+            </div>
+          } @else if (post.description_status === 'PENDING') {
+            <div class="img-desc-state text-muted">
+              <small>Generating description…</small>
+            </div>
+          } @else if (post.description_status === 'FAILED') {
+            <div class="img-desc-state">
+              <small class="text-danger">Description generation failed.</small>
+              <button
+                type="button"
+                class="img-desc-action retry"
+                (click)="requestDescription($event)"
+                [attr.aria-label]="'Retry image description for post ' + post.id"
+              >
+                <span aria-hidden="true">↻</span>
+                <span>Try again</span>
+              </button>
+            </div>
+          } @else {
+            <!-- NONE (or missing status) -->
+            <button
+              type="button"
+              class="img-desc-action"
+              (click)="requestDescription($event)"
+              [attr.aria-label]="'Generate image description for post ' + post.id"
+            >
+              <span class="sparkle" aria-hidden="true">✨</span>
+              <span>Generate description</span>
+            </button>
+          }
+        </div>
       </div>
     }
 

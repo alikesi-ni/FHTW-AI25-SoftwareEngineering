@@ -65,6 +65,26 @@ services:
     volumes:
       - ./uploads:/app/uploads
 
+  describe-worker:
+    build:
+      context: ./describe-worker
+      dockerfile: Dockerfile
+    container_name: social-describe-worker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    env_file: .env.docker
+    environment:
+      RABBITMQ_DESCRIBE_QUEUE: ${RABBITMQ_DESCRIBE_QUEUE:-image_describe}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-60}
+      DESCRIBE_PROMPT: ${DESCRIBE_PROMPT:-Describe this image clearly and objectively for a visually impaired person. Focus on what is visible, including people, objects, actions, and setting. Do not speculate beyond what can be seen.}
+    volumes:
+      - ./uploads:/app/uploads
+
   frontend:
     build:
       context: ./frontend/social-frontend
