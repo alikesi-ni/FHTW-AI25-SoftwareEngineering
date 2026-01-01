@@ -15,4 +15,4 @@ COPY describe_worker.py ./
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["uv", "run", "python", "describe_resize-worker.py"]
+CMD ["uv", "run", "python", "describe_worker.py"]

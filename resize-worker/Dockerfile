@@ -13,8 +13,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 # Copy the resize-worker code
-COPY resize-worker.py .
+COPY resize_worker.py .
 
 ENV IMAGE_ROOT=/app/uploads
 
-CMD ["uv", "run", "python", "-u", "resize-worker.py"]
+CMD ["uv", "run", "python", "-u", "resize_worker.py"]

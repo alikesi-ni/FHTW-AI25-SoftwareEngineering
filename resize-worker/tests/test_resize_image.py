@@ -3,12 +3,12 @@ import sys
 
 from PIL import Image
 
-# Make sure the project root (the directory containing resize-worker.py) is on sys.path
+# Make sure the project root (the directory containing resize_worker.py) is on sys.path
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
     
-from resize-worker import resize_image
+from resize_worker import resize_image
 
 
 def _create_image(path: Path, size=(800, 600), mode: str = "RGBA") -> None:

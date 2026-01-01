@@ -63,7 +63,7 @@ project-root/
 │  └─ uv.lock
 │
 ├─ resize-worker/
-│  ├─ resize-worker.py
+│  ├─ resize_worker.py
 │  ├─ Dockerfile
 │  ├─ pyproject.toml
 │  └─ uv.lock
@@ -175,7 +175,7 @@ docker compose --env-file .env.docker up -d resize-worker
 ```bash
 cd resize-worker
 uv sync --frozen
-uv run python resize-worker.py
+uv run python resize_worker.py
 ```
 
 ## 4) Run frontend locally
