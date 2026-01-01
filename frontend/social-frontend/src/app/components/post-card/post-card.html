@@ -46,26 +46,26 @@
             <div class="img-desc-state">
               <small class="text-danger">Description generation failed.</small>
               <button
-                type="button"
-                class="img-desc-action retry"
-                (click)="requestDescription($event)"
-                [attr.aria-label]="'Retry image description for post ' + post.id"
-              >
-                <span aria-hidden="true">↻</span>
-                <span>Try again</span>
-              </button>
+  type="button"
+  class="btn btn-outline-secondary btn-sm img-desc-btn"
+  (click)="requestDescription($event)"
+  [attr.aria-label]="'Retry image description for post ' + post.id"
+>
+  <span aria-hidden="true">↻</span>
+  <span class="ms-1">Try again</span>
+</button>
             </div>
           } @else {
             <!-- NONE (or missing status) -->
             <button
-              type="button"
-              class="img-desc-action"
-              (click)="requestDescription($event)"
-              [attr.aria-label]="'Generate image description for post ' + post.id"
-            >
-              <span class="sparkle" aria-hidden="true">✨</span>
-              <span>Generate description</span>
-            </button>
+  type="button"
+  class="btn btn-outline-secondary btn-sm img-desc-btn"
+  (click)="requestDescription($event)"
+  [attr.aria-label]="'Generate image description for post ' + post.id"
+>
+  <span aria-hidden="true">✨</span>
+  <span class="ms-1">Generate description</span>
+</button>
           }
         </div>
       </div>
