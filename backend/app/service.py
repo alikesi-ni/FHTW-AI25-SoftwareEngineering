@@ -38,7 +38,14 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
         if not img_abs.exists():
             raise FileNotFoundError(f"Image not found: {img_abs}")
 
+    # Resize worker status
     image_status = "PENDING" if image_filename is not None else "READY"
+
+    # Description generation status:
+    # - NONE on creation (user triggers generation explicitly)
+    # - if there is no image, it still stays NONE
+    description_status = "NONE"
+    image_description = None
 
     with SessionLocal() as db:
         post = Post(
@@ -46,6 +53,8 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
             image_status=image_status,
             content=content,
             username=username,
+            image_description=image_description,
+            description_status=description_status,
         )
         db.add(post)
         db.commit()
@@ -109,4 +118,31 @@ def _to_dict(p: Post) -> dict:
         "content": p.content,
         "username": p.username,
         "created_at": p.created_at,
+        "image_description": p.image_description,
+        "description_status": p.description_status,
     }
+
+
+def get_post_by_id(post_id: int) -> Optional[dict]:
+    with SessionLocal() as db:
+        post = db.execute(select(Post).where(Post.id == post_id)).scalar_one_or_none()
+        return _to_dict(post) if post else None
+
+
+def mark_description_pending(post_id: int) -> None:
+    with SessionLocal() as db:
+        post = db.execute(select(Post).where(Post.id == post_id)).scalar_one_or_none()
+        if post is None:
+            raise ValueError("Post not found")
+
+        if post.image_filename is None:
+            raise ValueError("Post has no image")
+
+        # if already has description, keep READY
+        if post.image_description:
+            post.description_status = "READY"
+        else:
+            post.description_status = "PENDING"
+
+        db.commit()
+

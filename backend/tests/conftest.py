@@ -28,12 +28,14 @@ def _connect():
 # Must match your current db/init.sql schema (at least columns used by tests)
 POST_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS post (
-  id             SERIAL PRIMARY KEY,
-  image_filename TEXT,
-  image_status   TEXT NOT NULL DEFAULT 'READY',
-  content        TEXT,
-  username       TEXT NOT NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id                  SERIAL PRIMARY KEY,
+  image_filename      TEXT,
+  image_status        TEXT NOT NULL DEFAULT 'READY',
+  image_description   TEXT,
+  description_status  TEXT NOT NULL DEFAULT 'NONE',
+  content             TEXT,
+  username            TEXT NOT NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT post_content_or_image
     CHECK (content IS NOT NULL OR image_filename IS NOT NULL),
@@ -46,6 +48,13 @@ CREATE TABLE IF NOT EXISTS post (
       (image_filename IS NULL AND image_status = 'READY')
       OR
       (image_filename IS NOT NULL AND image_status IN ('PENDING', 'READY', 'FAILED'))
+    ),
+
+  CONSTRAINT post_description_status
+    CHECK (
+      (image_filename IS NULL AND description_status = 'NONE')
+      OR
+      (image_filename IS NOT NULL AND description_status IN ('NONE', 'PENDING', 'READY', 'FAILED'))
     )
 );
 """

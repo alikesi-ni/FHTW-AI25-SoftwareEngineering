@@ -1,6 +1,6 @@
 FROM python:3.14-slim
 
-WORKDIR /worker
+WORKDIR /resize-worker
 
 # Copy uv binary from Astral's image (fast + simple)
 COPY --from=ghcr.io/astral-sh/uv:debian /usr/local/bin/uv /usr/local/bin/uv
@@ -12,9 +12,9 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Copy the worker code
-COPY worker.py .
+# Copy the resize-worker code
+COPY resize_worker.py .
 
 ENV IMAGE_ROOT=/app/uploads
 
-CMD ["uv", "run", "python", "-u", "worker.py"]
+CMD ["uv", "run", "python", "-u", "resize_worker.py"]

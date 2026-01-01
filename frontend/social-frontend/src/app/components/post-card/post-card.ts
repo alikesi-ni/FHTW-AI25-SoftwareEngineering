@@ -1,4 +1,4 @@
-import { Component, Input, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
 
@@ -12,6 +12,9 @@ import { Post } from '../../models/post';
 export class PostCard {
   @Input({ required: true }) post!: Post;
 
+  // NEW (minimal): bubble up "generate description" request to parent
+  @Output() generateDescription = new EventEmitter<number>();
+
   lightboxOpen = false;
 
   // If reduced image fails to load, we fall back to the original once.
@@ -21,6 +24,11 @@ export class PostCard {
   ngOnChanges() {
     this.imgSrc = this.thumbUrl;
     this.triedFallback = false;
+  }
+
+  // NEW (minimal): expose description to template
+  get imageDescription(): string | null {
+    return this.post.image_description ?? null;
   }
 
   get originalUrl(): string | null {
@@ -38,6 +46,12 @@ export class PostCard {
     if (!this.post.image_filename) return null;
     if (this.post.image_status === 'READY') return this.reducedUrl;
     return this.originalUrl;
+  }
+
+  // NEW (minimal): called by the "Generate description" button in template
+  requestDescription(event: MouseEvent) {
+    event.stopPropagation();
+    this.generateDescription.emit(this.post.id);
   }
 
   onImgError() {

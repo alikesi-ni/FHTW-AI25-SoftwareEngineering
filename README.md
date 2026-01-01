@@ -1,11 +1,11 @@
 # 📱 Social App — Full-Stack Project  
-FastAPI backend • PostgreSQL • Angular frontend • RabbitMQ worker • Image uploads
+FastAPI backend • PostgreSQL • Angular frontend • RabbitMQ resize-worker • Image uploads
 
 This project implements a small social media application with:
 
 - FastAPI backend (Python 3.12+, uv, SQLAlchemy, PostgreSQL)
 - Angular frontend (Node.js, Angular, Bootstrap)
-- Asynchronous image resizing via RabbitMQ + worker
+- Asynchronous image resizing via RabbitMQ + resize-worker
 - Original + reduced image storage
 - Automated tests + GitHub Actions CI
 
@@ -27,7 +27,7 @@ This project implements a small social media application with:
 - OpenAPI schema (`/docs`)
 - Image status tracking (`PENDING | READY | FAILED`)
 
-## Image Worker
+## Image resize-worker
 - RabbitMQ-based background processing
 - Resizes images (max width 512)
 - Removes transparency by compositing onto a white background (for PNGs with alpha)
@@ -62,8 +62,8 @@ project-root/
 │  ├─ pyproject.toml
 │  └─ uv.lock
 │
-├─ worker/
-│  ├─ worker.py
+├─ resize-worker/
+│  ├─ resize_worker.py
 │  ├─ Dockerfile
 │  ├─ pyproject.toml
 │  └─ uv.lock
@@ -164,18 +164,18 @@ Backend:
 - http://localhost:8000
 - http://localhost:8000/docs
 
-## 3) Run worker (choose one)
+## 3) Run resize-worker (choose one)
 
-### Option A: run worker in Docker (recommended)
+### Option A: run resize-worker in Docker (recommended)
 ```bash
-docker compose --env-file .env.docker up -d worker
+docker compose --env-file .env.docker up -d resize-worker
 ```
 
-### Option B: run worker locally (uv)
+### Option B: run resize-worker locally (uv)
 ```bash
-cd worker
+cd resize-worker
 uv sync --frozen
-uv run python worker.py
+uv run python resize_worker.py
 ```
 
 ## 4) Run frontend locally
@@ -204,7 +204,7 @@ Services started:
 - PostgreSQL
 - RabbitMQ
 - Backend API
-- Worker
+- resize-worker
 - Frontend (nginx)
 
 ---
@@ -233,5 +233,5 @@ uv run pytest -q
 
 - FastAPI backend + SQLAlchemy + Postgres
 - Angular frontend
-- RabbitMQ + worker for background image processing
+- RabbitMQ + resize-worker for background image processing
 - Tests and CI workflows

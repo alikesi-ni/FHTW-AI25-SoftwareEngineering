@@ -7,6 +7,8 @@ function makePost(status: 'PENDING' | 'READY' | 'FAILED'): Post {
     id: 1,
     image_filename: 'example.jpg',
     image_status: status,
+    image_description: null,
+    description_status: "NONE",
     content: 'hello',
     username: 'alice',
     created_at: '2024-01-01T00:00:00Z',
