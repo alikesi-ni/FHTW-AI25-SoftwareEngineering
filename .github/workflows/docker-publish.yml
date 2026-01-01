@@ -1,4 +1,4 @@
-name: Publish Backend Docker Image
+name: Publish Docker Images
 
 on:
   push:
@@ -29,13 +29,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # -------------------------
       # Backend image
+      # -------------------------
       - name: Extract Docker metadata (tags, labels) for backend
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}/backend
           tags: |
+            type=ref,event=branch
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
@@ -51,13 +54,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # -------------------------
       # Frontend image
+      # -------------------------
       - name: Extract Docker metadata (tags, labels) for frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}/frontend
           tags: |
+            type=ref,event=branch
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
@@ -73,13 +79,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # -------------------------
       # resize-worker image
+      # -------------------------
       - name: Extract Docker metadata (tags, labels) for resize-worker
         id: meta-resize-worker
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}/resize-worker
           tags: |
+            type=ref,event=branch
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
@@ -92,5 +101,30 @@ jobs:
           push: true
           tags: ${{ steps.meta-resize-worker.outputs.tags }}
           labels: ${{ steps.meta-resize-worker.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # -------------------------
+      # describe-worker image
+      # -------------------------
+      - name: Extract Docker metadata (tags, labels) for describe-worker
+        id: meta-describe-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/describe-worker
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push describe-worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./describe-worker
+          file: ./describe-worker/Dockerfile
+          push: true
+          tags: ${{ steps.meta-describe-worker.outputs.tags }}
+          labels: ${{ steps.meta-describe-worker.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
