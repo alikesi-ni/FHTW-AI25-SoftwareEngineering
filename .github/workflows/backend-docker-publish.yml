@@ -73,24 +73,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Worker image
-      - name: Extract Docker metadata (tags, labels) for worker
-        id: meta-worker
+      # resize-worker image
+      - name: Extract Docker metadata (tags, labels) for resize-worker
+        id: meta-resize-worker
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/worker
+          images: ghcr.io/${{ github.repository }}/resize-worker
           tags: |
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push worker image
+      - name: Build and push resize-worker image
         uses: docker/build-push-action@v6
         with:
-          context: ./worker
-          file: ./worker/Dockerfile
+          context: ./resize-worker
+          file: ./resize-worker/Dockerfile
           push: true
-          tags: ${{ steps.meta-worker.outputs.tags }}
-          labels: ${{ steps.meta-worker.outputs.labels }}
+          tags: ${{ steps.meta-resize-worker.outputs.tags }}
+          labels: ${{ steps.meta-resize-worker.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

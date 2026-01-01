@@ -51,11 +51,11 @@ services:
     volumes:
       - ./uploads:/app/uploads
 
-  worker:
+  resize-worker:
     build:
-      context: ./worker
+      context: ./resize-worker
       dockerfile: Dockerfile
-    container_name: social-worker
+    container_name: social-resize-worker
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -35,13 +35,13 @@ jobs:
           push: false
           load: false
 
-      # Build worker image to ensure Dockerfile is valid
-      - name: Build worker Docker image (no push)
+      # Build resize-worker image to ensure Dockerfile is valid
+      - name: Build resize-worker Docker image (no push)
         uses: docker/build-push-action@v5
         with:
-          context: ./worker
-          file: ./worker/Dockerfile
-          tags: social-worker:test
+          context: ./resize-worker
+          file: ./resize-worker/Dockerfile
+          tags: social-resize-worker:test
           push: false
           load: false
 

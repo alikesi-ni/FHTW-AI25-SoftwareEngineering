@@ -79,8 +79,8 @@ jobs:
         run: npm run build
 
 
-  worker-check:
-    name: Worker Check
+  resize-worker-check:
+    name: resize-worker Check
     runs-on: ubuntu-latest
 
     steps:
@@ -94,10 +94,10 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies (worker)
-        working-directory: worker
+      - name: Install dependencies (resize-worker)
+        working-directory: resize-worker
         run: uv sync --frozen
 
-      - name: Run worker tests
-        working-directory: worker
+      - name: Run resize-worker tests
+        working-directory: resize-worker
         run: uv run pytest -q

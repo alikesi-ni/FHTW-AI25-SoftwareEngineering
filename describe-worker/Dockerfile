@@ -10,9 +10,9 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen
 
-# Copy worker code
+# Copy resize-worker code
 COPY describe_worker.py ./
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["uv", "run", "python", "describe_worker.py"]
+CMD ["uv", "run", "python", "describe_resize-worker.py"]
