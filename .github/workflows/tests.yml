@@ -101,3 +101,27 @@ jobs:
       - name: Run resize-worker tests
         working-directory: resize-worker
         run: uv run pytest -q
+
+
+  describe-worker-check:
+    name: describe-worker Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies (describe-worker)
+        working-directory: describe-worker
+        run: uv sync --frozen
+
+      - name: Run describe-worker tests
+        working-directory: describe-worker
+        run: uv run pytest -q
