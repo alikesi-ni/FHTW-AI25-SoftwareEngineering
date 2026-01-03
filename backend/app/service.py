@@ -1,12 +1,17 @@
-import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+import os
+
+import psycopg
+from psycopg.rows import dict_row
 
 from sqlalchemy import select, or_
 
 from app.db import SessionLocal
 from app.models import Post
-
+from app.queue import publish_sentiment_job
 
 def _image_root() -> Path:
     root = Path(os.getenv("IMAGE_ROOT", "uploads"))
@@ -21,8 +26,20 @@ def _resolve_under_root(image_rel: str) -> Path:
         raise ValueError("image path must be inside IMAGE_ROOT")
     return p
 
+def _psycopg_url() -> str:
+    host = os.getenv("DB_HOST", "db")
+    port = os.getenv("DB_PORT", "5432")
+    name = os.getenv("DB_NAME", "social")
+    user = os.getenv("DB_USER", "admin")
+    pw = os.getenv("DB_PASSWORD", "password")
+    
+    return f"postgresql://{user}:{pw}@{host}:{port}/{name}"
 
-def add_post(image_filename: Optional[str], content: Optional[str], username: str) -> int:
+def add_post(
+    image_filename: Optional[str],
+    content: Optional[str],
+    username: str,
+) -> int:
     username = (username or "").strip()
     image_filename = (image_filename or "").strip() or None
     content = (content or "").strip() or None
@@ -33,24 +50,21 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
     if image_filename is None and content is None:
         raise ValueError("Either content or image_filename must be provided")
 
-    if image_filename is not None:
-        img_abs = _resolve_under_root(f"original/{image_filename}")
-        if not img_abs.exists():
-            raise FileNotFoundError(f"Image not found: {img_abs}")
-
     image_status = "PENDING" if image_filename is not None else "READY"
 
-    with SessionLocal() as db:
-        post = Post(
-            image_filename=image_filename,
-            image_status=image_status,
-            content=content,
-            username=username,
-        )
-        db.add(post)
-        db.commit()
-        db.refresh(post)
-        return post.id
+    with psycopg.connect(_psycopg_url(), row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO post (image_filename, image_status, content, username, created_at)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (image_filename, image_status, content, username, datetime.utcnow()),
+            )
+            row = cur.fetchone()
+            return int(row["id"])
+
 
 
 def get_latest_post():
@@ -109,4 +123,28 @@ def _to_dict(p: Post) -> dict:
         "content": p.content,
         "username": p.username,
         "created_at": p.created_at,
+        "sentiment_status": p.sentiment_status,
+        "sentiment_label": p.sentiment_label,
+        "sentiment_score": p.sentiment_score,
     }
+
+def request_sentiment_analysis(post_id: int) -> dict:
+    """Set sentiment_status to PENDING and enqueue a sentiment job."""
+    with SessionLocal() as db:
+        post = db.get(Post, post_id)
+        if post is None:
+            raise ValueError("Post not found")
+
+        if not post.content:
+            raise ValueError("Post has no content for sentiment analysis")
+
+        if post.sentiment_status == "PENDING":
+            return _to_dict(post)
+
+        post.sentiment_status = "PENDING"
+        db.commit()
+        db.refresh(post)
+
+        publish_sentiment_job(post.id)
+
+        return _to_dict(post)

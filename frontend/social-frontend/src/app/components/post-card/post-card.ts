@@ -1,6 +1,8 @@
 import { Component, Input, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
+import { PostService } from '../../services/post';
+
 
 @Component({
   selector: 'app-post-card',
@@ -13,6 +15,29 @@ export class PostCard {
   @Input({ required: true }) post!: Post;
 
   lightboxOpen = false;
+  loadingSentiment = false;
+
+  constructor(private postService: PostService) {}
+
+  onAnalyzeSentiment(): void {
+    if (!this.post || !this.post.id || this.loadingSentiment) {
+      return;
+    }
+
+    this.loadingSentiment = true;
+
+    this.postService.analyzeSentiment(this.post.id).subscribe({
+      next: (updated) => {
+        this.post = updated;
+        this.loadingSentiment = false;
+      },
+      error: (err) => {
+        console.error('Failed to analyze sentiment', err);
+        this.loadingSentiment = false;
+      }
+    });
+  }
+  
 
   // If reduced image fails to load, we fall back to the original once.
   imgSrc: string | null = null;

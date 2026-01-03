@@ -59,4 +59,10 @@ export class PostService {
       }
     });
   }
+
+  analyzeSentiment(postId: number) {
+    const url = `${this.apiUrl}/posts/${postId}/sentiment`;
+    return this.http.post<Post>(url, {});
+  }
+
 }

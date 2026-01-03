@@ -7,6 +7,8 @@ dependencies = [
   "pillow>=11.0.0",
   "psycopg[binary]>=3.2",
   "sqlalchemy>=2.0",
+  "transformers",
+  "torch",
 ]
 
 [dependency-groups]

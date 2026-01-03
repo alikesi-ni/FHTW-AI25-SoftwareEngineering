@@ -44,8 +44,32 @@
     <p class="mb-0 text-muted">
       <small>Created at: {{ post.created_at }}</small>
     </p>
+      @if (post.sentiment_status === 'READY') {
+      <p class="card-text mb-1">
+        <strong>Sentiment:</strong>
+        {{ post.sentiment_label }}
+        ({{ post.sentiment_score | number:'1.2-2' }})
+      </p>
+    } @else if (post.sentiment_status === 'PENDING') {
+      <p class="card-text mb-1 text-muted">
+        <strong>Sentiment:</strong> analyzing...
+      </p>
+    }
+
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm mt-1"
+      (click)="onAnalyzeSentiment()"
+      [disabled]="loadingSentiment || post.sentiment_status === 'PENDING'">
+      <p class="card-text mb-1 text-muted">
+        <strong>Analayze Sentiment</strong>
+      </p>
+    </button>
   </div>
 </div>
+
+
+
 
 @if (lightboxOpen && originalUrl) {
   <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true">
