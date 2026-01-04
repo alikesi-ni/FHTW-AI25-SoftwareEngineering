@@ -4,9 +4,6 @@ from typing import Optional
 
 import os
 
-import psycopg
-from psycopg.rows import dict_row
-
 from sqlalchemy import select, or_
 
 from app.db import SessionLocal
@@ -26,15 +23,6 @@ def _resolve_under_root(image_rel: str) -> Path:
         raise ValueError("image path must be inside IMAGE_ROOT")
     return p
 
-def _psycopg_url() -> str:
-    host = os.getenv("DB_HOST", "db")
-    port = os.getenv("DB_PORT", "5432")
-    name = os.getenv("DB_NAME", "social")
-    user = os.getenv("DB_USER", "admin")
-    pw = os.getenv("DB_PASSWORD", "password")
-    
-    return f"postgresql://{user}:{pw}@{host}:{port}/{name}"
-
 def add_post(
     image_filename: Optional[str],
     content: Optional[str],
@@ -50,21 +38,7 @@ def add_post(
     if image_filename is None and content is None:
         raise ValueError("Either content or image_filename must be provided")
 
-    image_status = "PENDING" if image_filename is not None else "READY"
-
-    with psycopg.connect(_psycopg_url(), row_factory=dict_row) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO post (image_filename, image_status, content, username, created_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (image_filename, image_status, content, username, datetime.utcnow()),
-            )
-            row = cur.fetchone()
-            return int(row["id"])
-
+    # Verify image exists (if provided)
     if image_filename is not None:
         img_abs = _resolve_under_root(f"original/{image_filename}")
         if not img_abs.exists():
@@ -74,10 +48,13 @@ def add_post(
     image_status = "PENDING" if image_filename is not None else "READY"
 
     # Description generation status:
-    # - NONE on creation (user triggers generation explicitly)
-    # - if there is no image, it still stays NONE
     description_status = "NONE"
     image_description = None
+
+    # Sentiment status defaults (content-driven)
+    sentiment_status = "NONE" if content else "NONE"
+    sentiment_label = None
+    sentiment_score = None
 
     with SessionLocal() as db:
         post = Post(
@@ -87,12 +64,14 @@ def add_post(
             username=username,
             image_description=image_description,
             description_status=description_status,
+            sentiment_status=sentiment_status,
+            sentiment_label=sentiment_label,
+            sentiment_score=sentiment_score,
         )
         db.add(post)
         db.commit()
         db.refresh(post)
         return post.id
-
 
 def get_latest_post():
     posts = get_posts(limit=1, order_by="created_at", order_dir="desc")
@@ -147,12 +126,14 @@ def _to_dict(p: Post) -> dict:
         "id": p.id,
         "image_filename": p.image_filename,
         "image_status": p.image_status,
+        "image_description": getattr(p, "image_description", None),
+        "description_status": getattr(p, "description_status", None),
         "content": p.content,
         "username": p.username,
         "created_at": p.created_at,
-        "sentiment_status": p.sentiment_status,
-        "sentiment_label": p.sentiment_label,
-        "sentiment_score": p.sentiment_score,
+        "sentiment_status": getattr(p, "sentiment_status", None),
+        "sentiment_label": getattr(p, "sentiment_label", None),
+        "sentiment_score": getattr(p, "sentiment_score", None),
     }
 
 def request_sentiment_analysis(post_id: int) -> dict:
@@ -175,8 +156,6 @@ def request_sentiment_analysis(post_id: int) -> dict:
         publish_sentiment_job(post.id)
 
         return _to_dict(post)
-        "image_description": p.image_description
-        "description_status": p.description_status
 
 
 def get_post_by_id(post_id: int) -> Optional[dict]:
