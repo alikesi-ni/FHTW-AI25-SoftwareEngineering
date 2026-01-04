@@ -47,9 +47,18 @@ jobs:
         working-directory: backend
         run: uv sync --frozen
 
+      - name: Initialize database schema
+        run: |
+          PGPASSWORD=password psql \
+            -h localhost \
+            -U admin \
+            -d social \
+            -f backend/db/init.sql
+
       - name: Run tests (backend)
         working-directory: backend
         run: uv run pytest -q
+
 
 
   frontend-tests:
