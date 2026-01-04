@@ -53,7 +53,7 @@ jobs:
             -h localhost \
             -U admin \
             -d social \
-            -f backend/db/init.sql
+            -f db/init.sql
 
       - name: Run tests (backend)
         working-directory: backend
