@@ -1,4 +1,4 @@
-name: Docker Build & Smoke Test Backend
+name: Docker Build & Smoke Test
 
 on:
   pull_request:
@@ -35,13 +35,23 @@ jobs:
           push: false
           load: false
 
-      # Build worker image to ensure Dockerfile is valid
-      - name: Build worker Docker image (no push)
+      # Build resize-worker image to ensure Dockerfile is valid
+      - name: Build resize-worker Docker image (no push)
         uses: docker/build-push-action@v5
         with:
-          context: ./worker
-          file: ./worker/Dockerfile
-          tags: social-worker:test
+          context: ./resize-worker
+          file: ./resize-worker/Dockerfile
+          tags: social-resize-worker:test
+          push: false
+          load: false
+
+      # Build describe-worker image to ensure Dockerfile is valid
+      - name: Build describe-worker Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./describe-worker
+          file: ./describe-worker/Dockerfile
+          tags: social-describe-worker:test
           push: false
           load: false
 
@@ -54,9 +64,9 @@ jobs:
             social-backend:test
           sleep 5
 
-      - name: Health check (/docs)
+      - name: Health check (/openapi.json)
         run: |
-          curl -fsS http://localhost:8000/docs > /dev/null
+          curl -fsS http://localhost:8000/openapi.json > /dev/null
 
       - name: Show logs on failure
         if: failure()

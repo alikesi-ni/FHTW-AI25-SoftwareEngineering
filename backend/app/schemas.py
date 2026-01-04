@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 
 ImageStatus = Literal["PENDING", "READY", "FAILED"]
+DescriptionStatus = Literal["NONE", "PENDING", "READY", "FAILED"]
 
 
 class PostOut(BaseModel):
@@ -18,3 +19,5 @@ class PostOut(BaseModel):
     sentiment_label: str | None
     sentiment_score: float | None
 
+    image_description: Optional[str] = None
+    description_status: DescriptionStatus

@@ -1,11 +1,12 @@
-name: Backend Tests
+name: CI
 
 on:
   pull_request:
     branches: [ main ]
 
 jobs:
-  test:
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
 
     services:
@@ -29,17 +30,15 @@ jobs:
       DB_NAME: social
       DB_USER: admin
       DB_PASSWORD: password
-      # Make sure tests and service agree on uploads root
       IMAGE_ROOT: uploads
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: "3.14"
 
       - name: Install uv
         run: pip install uv
@@ -52,45 +51,77 @@ jobs:
         working-directory: backend
         run: uv run pytest -q
 
-  frontend-build:
+
+  frontend-tests:
+    name: Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/social-frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend/social-frontend
         run: npm ci
 
+      - name: Run frontend unit tests (specs)
+        working-directory: frontend/social-frontend
+        run: npm test -- --watch=false
+
       - name: Build Angular app
         working-directory: frontend/social-frontend
         run: npm run build
 
-  worker-check:
+
+  resize-worker-check:
+    name: resize-worker Check
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: "3.14"
 
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies (worker)
-        working-directory: worker
+      - name: Install dependencies (resize-worker)
+        working-directory: resize-worker
         run: uv sync --frozen
 
-      - name: Run worker tests
-        working-directory: worker
+      - name: Run resize-worker tests
+        working-directory: resize-worker
+        run: uv run pytest -q
+
+
+  describe-worker-check:
+    name: describe-worker Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies (describe-worker)
+        working-directory: describe-worker
+        run: uv sync --frozen
+
+      - name: Run describe-worker tests
+        working-directory: describe-worker
         run: uv run pytest -q

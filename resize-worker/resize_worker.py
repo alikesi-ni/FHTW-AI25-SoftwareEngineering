@@ -83,7 +83,7 @@ def wait_for_db(engine: Engine) -> None:
                 conn.execute(text("SELECT 1"))
             return
         except Exception as e:
-            print(f"[worker] DB not ready yet: {e}. Retrying...")
+            print(f"[resize-worker] DB not ready yet: {e}. Retrying...")
             time.sleep(2)
 
 
@@ -120,7 +120,7 @@ def main() -> None:
             connection = pika.BlockingConnection(amqp_params())
             break
         except Exception as e:
-            print(f"[worker] RabbitMQ not ready yet: {e}. Retrying...")
+            print(f"[resize-worker] RabbitMQ not ready yet: {e}. Retrying...")
             time.sleep(2)
 
     channel = connection.channel()
@@ -131,6 +131,7 @@ def main() -> None:
     print(f"[worker] Listening on queue: {queue_name}")
     print(f"[worker] Listening on sentiment queue: {sentiment_queue_name}")
 
+    print(f"[resize-worker] Listening on queue: {queue_name}")
 
     def handle(ch, method, properties, body: bytes):
         filename = None
@@ -148,13 +149,13 @@ def main() -> None:
             # Idempotency: if already resized, ensure READY and ack
             if dst.exists():
                 update_status(engine, filename, "READY")
-                print(f"[worker] Reduced already exists, marked READY: {dst}")
+                print(f"[resize-worker] Reduced already exists, marked READY: {dst}")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
             resize_image(src, dst, max_width=int(payload.get("max_width", 512)))
             update_status(engine, filename, "READY")
-            print(f"[worker] Wrote reduced image, marked READY: {dst}")
+            print(f"[resize-worker] Wrote reduced image, marked READY: {dst}")
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -164,10 +165,10 @@ def main() -> None:
                 try:
                     update_status(engine, filename, "FAILED")
                 except Exception as db_err:
-                    print(f"[worker] Failed to update status to FAILED: {db_err}")
+                    print(f"[resize-worker] Failed to update status to FAILED: {db_err}")
 
             # For the exercise, don't requeue forever on bad input
-            print(f"[worker] Job failed: {e}")
+            print(f"[resize-worker] Job failed: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     

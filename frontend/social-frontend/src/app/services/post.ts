@@ -65,4 +65,14 @@ export class PostService {
     return this.http.post<Post>(url, {});
   }
 
+  getPost(postId: number): Observable<Post> {
+    return this.http.get<Post>(`${this.apiUrl}/posts/${postId}`);
+  }
+
+  describePost(postId: number): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      `${this.apiUrl}/posts/${postId}/describe`,
+      {}
+    );
+  }
 }

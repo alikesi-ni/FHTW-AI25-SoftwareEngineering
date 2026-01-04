@@ -10,7 +10,15 @@ class Post(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     image_filename: Mapped[str | None] = mapped_column(Text, nullable=True)
-    image_status: Mapped[str] = mapped_column(String, nullable=False, default="READY")
+    image_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="READY"
+    )
+    image_description: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+    description_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="NONE"
+    )
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     username: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

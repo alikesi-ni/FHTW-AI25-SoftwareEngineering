@@ -29,3 +29,16 @@ CREATE TABLE IF NOT EXISTS post (
   CONSTRAINT sentiment_status_check CHECK (sentiment_status IN ('NONE','PENDING','READY','FAILED'))
   
 );
+
+ALTER TABLE post
+ADD COLUMN IF NOT EXISTS image_description TEXT,
+ADD COLUMN IF NOT EXISTS description_status TEXT NOT NULL DEFAULT 'NONE';
+
+ALTER TABLE post
+ADD CONSTRAINT post_description_status
+CHECK (
+  (image_filename IS NULL AND description_status = 'NONE')
+  OR
+  (image_filename IS NOT NULL AND description_status IN ('NONE', 'PENDING', 'READY', 'FAILED'))
+);
+
