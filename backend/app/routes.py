@@ -117,21 +117,25 @@ def get_post(post_id: int):
 
 
 @router.post("/posts/{post_id}/describe", status_code=202)
-def describe_post(post_id: int):
-    try:
-        post = service.get_post_by_id(post_id)
-        if post is None:
-            raise HTTPException(status_code=404, detail="Post not found")
-        if not post.get("image_filename"):
-            raise HTTPException(status_code=400, detail="Post has no image")
+def describe_image(post_id: int):
+    post = service.get_post_by_id(post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
 
-        # If already ready, return immediately
-        if post.get("image_description"):
-            return {"status": "READY"}
+    if not post.get("image_filename"):
+        raise HTTPException(status_code=400, detail="Post has no image")
 
-        service.mark_description_pending(post_id)
-        queue.publish_describe_job(post_id, post["image_filename"])
+    status = post.get("description_status")
+
+    if status == "READY":
+        return {"status": "READY"}
+
+    if status == "PENDING":
         return {"status": "PENDING"}
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # NONE or FAILED → retry
+    service.mark_description_pending(post_id)
+    queue.publish_describe_job(post_id)
+
+    return {"status": "PENDING"}
+

@@ -11,6 +11,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 
+# -------------------------
+# RabbitMQ
+# -------------------------
 def amqp_params() -> pika.ConnectionParameters:
     host = os.getenv("RABBITMQ_HOST", "rabbitmq")
     port = int(os.getenv("RABBITMQ_PORT", "5672"))
@@ -20,6 +23,39 @@ def amqp_params() -> pika.ConnectionParameters:
     return pika.ConnectionParameters(host=host, port=port, credentials=credentials)
 
 
+def wait_for_rabbitmq() -> pika.BlockingConnection:
+    while True:
+        try:
+            return pika.BlockingConnection(amqp_params())
+        except Exception as e:
+            print(f"[describe-worker] RabbitMQ not ready yet: {e}. Retrying...")
+            time.sleep(2)
+
+
+def publish_result(post_id: int) -> None:
+    """
+    Publish a small "result trigger" so the backend (listening on results queue)
+    can read the canonical state from DB and push SSE to clients.
+    """
+    results_queue = os.getenv("RABBITMQ_DESCRIBE_RESULTS_QUEUE", "describe_results")
+    payload = {"post_id": post_id}
+
+    conn = pika.BlockingConnection(amqp_params())
+    ch = conn.channel()
+    ch.queue_declare(queue=results_queue, durable=True)
+
+    ch.basic_publish(
+        exchange="",
+        routing_key=results_queue,
+        body=json.dumps(payload).encode("utf-8"),
+        properties=pika.BasicProperties(delivery_mode=2),  # persistent
+    )
+    conn.close()
+
+
+# -------------------------
+# Database
+# -------------------------
 def db_url() -> str:
     host = os.getenv("DB_HOST", "db")
     port = os.getenv("DB_PORT", "5432")
@@ -44,22 +80,66 @@ def wait_for_db(engine: Engine) -> None:
             time.sleep(2)
 
 
-def wait_for_rabbitmq() -> pika.BlockingConnection:
-    while True:
-        try:
-            return pika.BlockingConnection(amqp_params())
-        except Exception as e:
-            print(f"[describe-worker] RabbitMQ not ready yet: {e}. Retrying...")
-            time.sleep(2)
+def get_post_image_filename(engine: Engine, post_id: int) -> Optional[str]:
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT image_filename FROM post WHERE id = :id"),
+            {"id": post_id},
+        ).fetchone()
+        if not row:
+            return None
+        return row[0]
 
 
+def set_description_status(
+    engine: Engine,
+    post_id: int,
+    status: str,
+    description: Optional[str] = None,
+) -> None:
+    """
+    Updates:
+      - description_status always
+      - image_description optionally
+
+    Note: We intentionally do NOT write `description_error` because the DB schema
+    does not contain that column.
+    """
+    with engine.begin() as conn:
+        if description is None:
+            conn.execute(
+                text(
+                    """
+                    UPDATE post
+                    SET description_status = :status
+                    WHERE id = :post_id
+                    """
+                ),
+                {"status": status, "post_id": post_id},
+            )
+        else:
+            conn.execute(
+                text(
+                    """
+                    UPDATE post
+                    SET image_description = :desc,
+                        description_status = :status
+                    WHERE id = :post_id
+                    """
+                ),
+                {"desc": description, "status": status, "post_id": post_id},
+            )
+
+
+# -------------------------
+# Gemini
+# -------------------------
 def mime_from_filename(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     if ext in (".jpg", ".jpeg"):
         return "image/jpeg"
     if ext == ".png":
         return "image/png"
-    # fallback; Gemini usually still works, but better to be explicit
     return "application/octet-stream"
 
 
@@ -98,87 +178,86 @@ def gemini_caption(image_bytes: bytes, mime_type: str, prompt: str) -> str:
         resp.raise_for_status()
         data = resp.json()
 
-    # typical: candidates[0].content.parts[0].text
     try:
         return data["candidates"][0]["content"]["parts"][0]["text"].strip()
     except Exception as e:
         raise RuntimeError(f"Unexpected Gemini response format: {e}; data={data!r}")
 
 
-def set_description_status(engine: Engine, post_id: int, status: str, description: Optional[str] = None) -> None:
-    with engine.begin() as conn:
-        if description is None:
-            conn.execute(
-                text(
-                    """
-                    UPDATE post
-                    SET description_status = :status
-                    WHERE id = :post_id
-                    """
-                ),
-                {"status": status, "post_id": post_id},
-            )
-        else:
-            conn.execute(
-                text(
-                    """
-                    UPDATE post
-                    SET image_description = :desc,
-                        description_status = :status
-                    WHERE id = :post_id
-                    """
-                ),
-                {"desc": description, "status": status, "post_id": post_id},
-            )
+def clamp_text(s: str, max_chars: int) -> str:
+    s = " ".join((s or "").split())
+    if len(s) <= max_chars:
+        return s
+    return s[: max_chars - 1].rstrip() + "…"
 
 
+# -------------------------
+# Worker main
+# -------------------------
 def main() -> None:
-    queue_name = os.getenv("RABBITMQ_DESCRIBE_QUEUE", "image_describe")
+    request_queue = os.getenv("RABBITMQ_DESCRIBE_QUEUE", "describe_requests")
+
     image_root = Path(os.getenv("IMAGE_ROOT", "/app/uploads"))
     original_dir = image_root / "original"
     original_dir.mkdir(parents=True, exist_ok=True)
 
-    prompt = os.getenv(
+    max_chars = int(os.getenv("DESCRIBE_MAX_CHARS", "300"))
+
+    base_prompt = os.getenv(
         "DESCRIBE_PROMPT",
         "Describe this image clearly and objectively for a visually impaired person. "
         "Focus on what is visible, including people, objects, actions, and setting. "
         "Do not speculate beyond what can be seen.",
-    ) + " Limit the description to at most 3 sentences and under 300 characters."
+    )
+    prompt = f"{base_prompt} Limit the description to at most 3 sentences and under {max_chars} characters."
 
     engine = make_engine()
     wait_for_db(engine)
 
     connection = wait_for_rabbitmq()
     channel = connection.channel()
-    channel.queue_declare(queue=queue_name, durable=True)
+    channel.queue_declare(queue=request_queue, durable=True)
     channel.basic_qos(prefetch_count=1)
 
-    print(f"[describe-worker] Listening on queue: {queue_name}")
+    print(f"[describe-worker] Listening on queue: {request_queue}")
 
     def handle(ch, method, properties, body: bytes):
         post_id: Optional[int] = None
-        filename: Optional[str] = None
         try:
             payload = json.loads(body.decode("utf-8"))
             post_id = int(payload["post_id"])
-            filename = payload["filename"]
+
+            filename = get_post_image_filename(engine, post_id)
+            if filename is None:
+                # post not found OR no image_filename (both mean "can't describe")
+                set_description_status(engine, post_id, "FAILED")
+                publish_result(post_id)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
 
             img_path = original_dir / filename
             if not img_path.exists():
                 set_description_status(engine, post_id, "FAILED")
-                raise FileNotFoundError(f"Original image does not exist: {img_path}")
+                publish_result(post_id)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
 
-            # Mark pending (idempotent)
-            set_description_status(engine, post_id, "PENDING")
+            # IMPORTANT:
+            # Do NOT set status to PROCESSING (it violates DB constraint).
+            # Backend already set description_status = PENDING.
+            # If you want a distinct PROCESSING state, update DB constraint + frontend types.
+            # set_description_status(engine, post_id, "PENDING")
 
             image_bytes = img_path.read_bytes()
             mime_type = mime_from_filename(filename)
 
             caption = gemini_caption(image_bytes, mime_type, prompt)
+            caption = clamp_text(caption, max_chars=max_chars)
 
             set_description_status(engine, post_id, "READY", description=caption)
-            print(f"[describe-worker] Post {post_id}: description READY")
+            publish_result(post_id)
 
+            print(f"[describe-worker] Post {post_id}: description READY")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
         except Exception as e:
@@ -187,13 +266,14 @@ def main() -> None:
             if post_id is not None:
                 try:
                     set_description_status(engine, post_id, "FAILED")
+                    publish_result(post_id)
                 except Exception as db_err:
                     print(f"[describe-worker] Failed to update FAILED status: {db_err}")
 
-            # Don't requeue by default (avoid infinite loops on bad jobs)
+            # Avoid infinite loops on bad jobs
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
-    channel.basic_consume(queue=queue_name, on_message_callback=handle)
+    channel.basic_consume(queue=request_queue, on_message_callback=handle)
     try:
         channel.start_consuming()
     finally:

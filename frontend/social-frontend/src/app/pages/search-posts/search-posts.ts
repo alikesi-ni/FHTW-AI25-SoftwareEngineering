@@ -1,104 +1,156 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PostService } from '../../services/post';
+import { Subscription, switchMap } from 'rxjs';
+
 import { Post } from '../../models/post';
+import { PostService } from '../../services/post';
 import { PostCard } from '../../components/post-card/post-card';
+import {
+  DescriptionEventsService,
+  DescriptionEventPayload,
+} from '../../services/description-events';
 
 @Component({
   selector: 'app-search-posts',
   standalone: true,
   imports: [CommonModule, FormsModule, PostCard],
   templateUrl: './search-posts.html',
-  styleUrls: ['./search-posts.css']
 })
-export class SearchPosts {
-
+export class SearchPosts implements OnDestroy {
   username = '';
   posts: Post[] = [];
   loading = false;
   error: string | null = null;
 
-  constructor(private postService: PostService) {}
+  private sseSubs = new Map<number, Subscription>();
+
+  constructor(
+    private postService: PostService,
+    private descEvents: DescriptionEventsService
+  ) {}
+
+  ngOnDestroy(): void {
+    for (const sub of this.sseSubs.values()) sub.unsubscribe();
+    this.sseSubs.clear();
+  }
 
   search(): void {
-    this.error = null;
-    this.posts = [];
-
-    const trimmed = this.username.trim();
-    if (!trimmed) {
-      this.error = 'Please enter a username.';
-      return;
-    }
+    const u = this.username.trim();
+    if (!u) return;
 
     this.loading = true;
+    this.error = null;
 
-    this.postService.getPostsByUser(trimmed).subscribe({
-      next: (res) => {
-        this.posts = res ?? [];
+    // clean up old SSE streams when running a new search
+    for (const sub of this.sseSubs.values()) sub.unsubscribe();
+    this.sseSubs.clear();
+
+    this.postService.getPostsByUser(u).subscribe({
+      next: (posts) => {
+        this.posts = posts ?? [];
         this.loading = false;
       },
-      error: (err) => {
-        console.error('Failed to search posts', err);
-        this.error = 'Failed to search posts. Check backend.';
+      error: () => {
         this.loading = false;
-      }
+        this.error = 'Failed to search posts.';
+      },
     });
   }
 
-  onGenerateDescription(postId: number) {
-    // optimistic UI update
-    this.patchPost(postId, { description_status: 'PENDING' });
+  onDescribeImage(postId: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return;
 
-    // enqueue description job
-    this.postService.describePost(postId).subscribe({
-      next: () => this.pollPost(postId),
-      error: (err) => console.error(err),
+    // Guard rails
+    if (!post.image_filename) return;
+    if (post.description_status === 'PENDING') return;
+    if (post.description_status === 'READY' && post.image_description) return;
+
+    // Optimistic UI
+    this.patchPost(postId, {
+      description_status: 'PENDING',
+      image_description: null,
+    });
+
+    this.postService.requestImageDescription(postId).subscribe({
+      next: () => {
+        this.sseSubs.get(postId)?.unsubscribe();
+
+        // placeholder subscription FIRST (avoids "sub before init" on sync emission)
+        const holder = new Subscription();
+        this.sseSubs.set(postId, holder);
+
+        const inner = this.descEvents
+          .subscribeToPost(postId)
+          .subscribe((evt: DescriptionEventPayload) => {
+            const p = this.posts.find((x) => x.id === postId);
+            if (!p) return;
+
+            if (evt.description_status) {
+              this.patchPost(postId, {
+                description_status: evt.description_status as Post['description_status'],
+              });
+            }
+
+            if (evt.image_description !== undefined) {
+              this.patchPost(postId, {
+                image_description: evt.image_description ?? null,
+              });
+            }
+
+            const updated = this.posts.find((x) => x.id === postId);
+            if (
+              updated &&
+              (updated.description_status === 'READY' ||
+                updated.description_status === 'FAILED')
+            ) {
+              this.sseSubs.get(postId)?.unsubscribe();
+              this.sseSubs.delete(postId);
+            }
+          });
+
+        holder.add(inner);
+      },
+      error: (err) => {
+        console.error(err);
+        this.patchPost(postId, { description_status: 'FAILED' });
+        this.sseSubs.get(postId)?.unsubscribe();
+        this.sseSubs.delete(postId);
+      },
     });
   }
 
-  pollPost(postId: number) {
-    const maxAttempts = 20;
-    let attempts = 0;
+  onAnalyzeSentiment(postId: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return;
 
-    const tick = () => {
-      attempts++;
+    // Guard rails
+    if (!post.content) return;
+    if (post.sentiment_status === 'PENDING') return;
+    if (post.sentiment_status === 'READY' && post.sentiment_label && post.sentiment_score !== null) return;
 
-      this.postService.getPost(postId).subscribe({
-        next: (post) => {
-          this.replacePost(post);
+    // Optimistic UI
+    this.patchPost(postId, { sentiment_status: 'PENDING' });
 
-          if (
-            post.description_status === 'READY' ||
-            post.description_status === 'FAILED' ||
-            attempts >= maxAttempts
-          ) {
-            return; // stop polling
-          }
-
-          setTimeout(tick, 1500);
-        },
-        error: () => {
-          if (attempts < maxAttempts) {
-            setTimeout(tick, 2000);
-          }
+    this.postService
+      .analyzeSentiment(postId)
+      .pipe(switchMap(() => this.postService.pollSentiment(postId)))
+      .subscribe({
+        next: (updated) => this.replacePost(updated),
+        error: (err) => {
+          console.error(err);
+          this.patchPost(postId, { sentiment_status: 'FAILED' });
         },
       });
-    };
-
-    tick();
   }
 
   // helpers
-  replacePost(updated: Post) {
-    this.posts = this.posts.map((p) =>
-      p.id === updated.id ? updated : p
-    );
+  replacePost(updated: Post): void {
+    this.posts = this.posts.map((p) => (p.id === updated.id ? updated : p));
   }
 
-  patchPost(postId: number, patch: Partial<Post>) {
-    this.posts = this.posts.map((p) =>
-      p.id === postId ? { ...p, ...patch } : p
-    );
+  patchPost(postId: number, patch: Partial<Post>): void {
+    this.posts = this.posts.map((p) => (p.id === postId ? { ...p, ...patch } : p));
   }
 }

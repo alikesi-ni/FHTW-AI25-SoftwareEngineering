@@ -16,7 +16,8 @@
   @for (p of posts; track p.id) {
     <app-post-card
       [post]="p"
-      (generateDescription)="onGenerateDescription($event)"
+      (describeImage)="onDescribeImage($event)"
+      (analyzeSentiment)="onAnalyzeSentiment($event)"
     ></app-post-card>
   }
 }

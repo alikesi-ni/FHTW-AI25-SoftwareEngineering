@@ -1,9 +1,12 @@
-import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
-import { PostService } from '../../services/post';
-import { switchMap } from 'rxjs/operators';
-
 
 @Component({
   selector: 'app-post-card',
@@ -15,45 +18,14 @@ import { switchMap } from 'rxjs/operators';
 export class PostCard {
   @Input({ required: true }) post!: Post;
 
-  // NEW (minimal): bubble up "generate description" request to parent
-  @Output() generateDescription = new EventEmitter<number>();
+  /**
+   * Dumb UI outputs:
+   * Parents decide what "request" means (HTTP, SSE subscribe, polling, etc.)
+   */
+  @Output() describeImage = new EventEmitter<number>();
+  @Output() analyzeSentiment = new EventEmitter<number>();
 
   lightboxOpen = false;
-  loadingSentiment = false;
-
-  constructor(private postService: PostService) {}
-
-isAnalyzingSentiment = false;
-
-onAnalyzeSentiment(): void {
-  if (!this.post?.id || this.isAnalyzingSentiment) {
-    return;
-  }
-
-  this.isAnalyzingSentiment = true;
-  this.post.sentiment_status = 'PENDING';
-
-  this.postService
-    .analyzeSentiment(this.post.id)
-    .pipe(switchMap(() => this.postService.pollSentiment(this.post.id)))
-    .subscribe({
-      next: (updatedPost) => {
-        this.post = {
-          ...this.post,
-          sentiment_status: updatedPost.sentiment_status,
-          sentiment_label: updatedPost.sentiment_label,
-          sentiment_score: updatedPost.sentiment_score,
-        };
-        this.isAnalyzingSentiment = false;
-      },
-      error: (err) => {
-        console.error('Sentiment analysis failed', err);
-        this.isAnalyzingSentiment = false;
-      },
-    });
-}
-
-  
 
   // If reduced image fails to load, we fall back to the original once.
   imgSrc: string | null = null;
@@ -62,11 +34,6 @@ onAnalyzeSentiment(): void {
   ngOnChanges() {
     this.imgSrc = this.thumbUrl;
     this.triedFallback = false;
-  }
-
-  // NEW (minimal): expose description to template
-  get imageDescription(): string | null {
-    return this.post.image_description ?? null;
   }
 
   get originalUrl(): string | null {
@@ -86,12 +53,6 @@ onAnalyzeSentiment(): void {
     return this.originalUrl;
   }
 
-  // NEW (minimal): called by the "Generate description" button in template
-  requestDescription(event: MouseEvent) {
-    event.stopPropagation();
-    this.generateDescription.emit(this.post.id);
-  }
-
   onImgError() {
     // If reduced isn't there yet (or 404), fall back to original once.
     if (!this.triedFallback && this.originalUrl && this.imgSrc !== this.originalUrl) {
@@ -103,6 +64,42 @@ onAnalyzeSentiment(): void {
     this.imgSrc = null;
   }
 
+  get imageDescription(): string | null {
+    return (this.post.image_description ?? '').trim() || null;
+  }
+
+  get sentimentAvailable(): boolean {
+    return (
+      this.post.sentiment_status === 'READY' &&
+      !!this.post.sentiment_label &&
+      this.post.sentiment_score !== null &&
+      this.post.sentiment_score !== undefined
+    );
+  }
+
+  get showSentimentButton(): boolean {
+    // Only show the button if there's content AND no sentiment available yet.
+    return !!this.post.content && !this.sentimentAvailable;
+  }
+
+  /**
+   * Emitters (no HTTP here)
+   */
+  requestDescription(ev: Event) {
+    ev.stopPropagation();
+    if (!this.post?.id) return;
+    this.describeImage.emit(this.post.id);
+  }
+
+  requestSentiment(ev: Event) {
+    ev.stopPropagation();
+    if (!this.post?.id) return;
+    this.analyzeSentiment.emit(this.post.id);
+  }
+
+  /**
+   * Lightbox
+   */
   openLightbox() {
     if (!this.originalUrl) return;
     this.lightboxOpen = true;
@@ -117,5 +114,24 @@ onAnalyzeSentiment(): void {
   @HostListener('document:keydown.escape')
   onEsc() {
     if (this.lightboxOpen) this.closeLightbox();
+  }
+
+  /**
+   * Created-at formatting: show to minutes in user's local timezone
+   */
+  get createdAtDisplay(): string {
+    const raw = this.post?.created_at;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+
+    // uses user's local timezone automatically
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
   }
 }

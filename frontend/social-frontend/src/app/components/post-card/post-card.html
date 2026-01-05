@@ -32,7 +32,7 @@
           </div>
         }
 
-        <!-- Description / generate row -->
+        <!-- Description row -->
         <div class="img-desc-row">
           @if (imageDescription) {
             <div class="img-desc">
@@ -40,32 +40,32 @@
             </div>
           } @else if (post.description_status === 'PENDING') {
             <div class="img-desc-state text-muted">
-              <small>Generating description…</small>
+              <small>Describing image…</small>
             </div>
           } @else if (post.description_status === 'FAILED') {
             <div class="img-desc-state">
-              <small class="text-danger">Description generation failed.</small>
+              <small class="text-danger">Image description failed.</small>
               <button
-  type="button"
-  class="btn btn-outline-secondary btn-sm img-desc-btn"
-  (click)="requestDescription($event)"
-  [attr.aria-label]="'Retry image description for post ' + post.id"
->
-  <span aria-hidden="true">↻</span>
-  <span class="ms-1">Try again</span>
-</button>
+                type="button"
+                class="btn btn-outline-secondary btn-sm img-desc-btn"
+                (click)="requestDescription($event)"
+                [attr.aria-label]="'Retry image description for post ' + post.id"
+              >
+                <span aria-hidden="true">↻</span>
+                <span class="ms-1">Try again</span>
+              </button>
             </div>
           } @else {
-            <!-- NONE (or missing status) -->
+            <!-- NONE -->
             <button
-  type="button"
-  class="btn btn-outline-secondary btn-sm img-desc-btn"
-  (click)="requestDescription($event)"
-  [attr.aria-label]="'Generate image description for post ' + post.id"
->
-  <span aria-hidden="true">✨</span>
-  <span class="ms-1">Generate description</span>
-</button>
+              type="button"
+              class="btn btn-outline-secondary btn-sm img-desc-btn"
+              (click)="requestDescription($event)"
+              [attr.aria-label]="'Describe image for post ' + post.id"
+            >
+              <span aria-hidden="true">✨</span>
+              <span class="ms-1">Describe image</span>
+            </button>
           }
         </div>
       </div>
@@ -73,40 +73,52 @@
 
     @if (post.content) {
       <p class="mb-2"><strong>Content:</strong> {{ post.content }}</p>
+
+      <!-- Sentiment right after content -->
+      @if (sentimentAvailable) {
+        <p class="card-text mb-1">
+          <strong>Sentiment:</strong>
+          {{ post.sentiment_label | lowercase }}
+          ({{ post.sentiment_score | number:'1.2-2' }})
+        </p>
+      } @else if (post.sentiment_status === 'PENDING') {
+        <p class="card-text mb-1 text-muted">
+          <small>Analyzing sentiment…</small>
+        </p>
+      } @else if (post.sentiment_status === 'FAILED') {
+        <p class="card-text mb-1">
+          <small class="text-danger">Sentiment analysis failed.</small>
+        </p>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm img-desc-btn"
+          (click)="requestSentiment($event)"
+          aria-label="Retry sentiment analysis"
+        >
+          <span aria-hidden="true">✨</span>
+          <span class="ms-1">Analyze sentiment</span>
+        </button>
+      } @else if (showSentimentButton) {
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm img-desc-btn"
+          (click)="requestSentiment($event)"
+          aria-label="Analyze sentiment"
+        >
+          <span aria-hidden="true">✨</span>
+          <span class="ms-1">Analyze sentiment</span>
+        </button>
+      }
     }
 
-    <p class="mb-1">
+    <p class="mb-1 mt-2">
       <strong>Username:</strong> {{ post.username }}
     </p>
     <p class="mb-0 text-muted">
-      <small>Created at: {{ post.created_at }}</small>
+      <small>Created at: {{ createdAtDisplay }}</small>
     </p>
-      @if (post.sentiment_status === 'READY') {
-      <p class="card-text mb-1">
-        <strong>Sentiment:</strong>
-        {{ post.sentiment_label }}
-        ({{ post.sentiment_score | number:'1.2-2' }})
-      </p>
-    } @else if (post.sentiment_status === 'PENDING') {
-      <p class="card-text mb-1 text-muted">
-        <strong>Sentiment:</strong> analyzing...
-      </p>
-    }
-
-    <button
-      type="button"
-      class="btn btn-outline-secondary btn-sm mt-1"
-      (click)="onAnalyzeSentiment()"
-      [disabled]="loadingSentiment || post.sentiment_status === 'PENDING'">
-      <p class="card-text mb-1 text-muted">
-        <strong>Analayze Sentiment</strong>
-      </p>
-    </button>
   </div>
 </div>
-
-
-
 
 @if (lightboxOpen && originalUrl) {
   <div class="lightbox" (click)="closeLightbox()" role="dialog" aria-modal="true">
