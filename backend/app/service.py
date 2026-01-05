@@ -1,12 +1,14 @@
-import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+import os
 
 from sqlalchemy import select, or_
 
 from app.db import SessionLocal
 from app.models import Post
-
+from app.queue import publish_sentiment_job
 
 def _image_root() -> Path:
     root = Path(os.getenv("IMAGE_ROOT", "uploads"))
@@ -21,8 +23,11 @@ def _resolve_under_root(image_rel: str) -> Path:
         raise ValueError("image path must be inside IMAGE_ROOT")
     return p
 
-
-def add_post(image_filename: Optional[str], content: Optional[str], username: str) -> int:
+def add_post(
+    image_filename: Optional[str],
+    content: Optional[str],
+    username: str,
+) -> int:
     username = (username or "").strip()
     image_filename = (image_filename or "").strip() or None
     content = (content or "").strip() or None
@@ -33,6 +38,7 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
     if image_filename is None and content is None:
         raise ValueError("Either content or image_filename must be provided")
 
+    # Verify image exists (if provided)
     if image_filename is not None:
         img_abs = _resolve_under_root(f"original/{image_filename}")
         if not img_abs.exists():
@@ -42,10 +48,13 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
     image_status = "PENDING" if image_filename is not None else "READY"
 
     # Description generation status:
-    # - NONE on creation (user triggers generation explicitly)
-    # - if there is no image, it still stays NONE
     description_status = "NONE"
     image_description = None
+
+    # Sentiment status defaults (content-driven)
+    sentiment_status = "NONE" if content else "NONE"
+    sentiment_label = None
+    sentiment_score = None
 
     with SessionLocal() as db:
         post = Post(
@@ -55,12 +64,14 @@ def add_post(image_filename: Optional[str], content: Optional[str], username: st
             username=username,
             image_description=image_description,
             description_status=description_status,
+            sentiment_status=sentiment_status,
+            sentiment_label=sentiment_label,
+            sentiment_score=sentiment_score,
         )
         db.add(post)
         db.commit()
         db.refresh(post)
         return post.id
-
 
 def get_latest_post():
     posts = get_posts(limit=1, order_by="created_at", order_dir="desc")
@@ -115,12 +126,36 @@ def _to_dict(p: Post) -> dict:
         "id": p.id,
         "image_filename": p.image_filename,
         "image_status": p.image_status,
+        "image_description": getattr(p, "image_description", None),
+        "description_status": getattr(p, "description_status", None),
         "content": p.content,
         "username": p.username,
         "created_at": p.created_at,
-        "image_description": p.image_description,
-        "description_status": p.description_status,
+        "sentiment_status": getattr(p, "sentiment_status", None),
+        "sentiment_label": getattr(p, "sentiment_label", None),
+        "sentiment_score": getattr(p, "sentiment_score", None),
     }
+
+def request_sentiment_analysis(post_id: int) -> dict:
+    """Set sentiment_status to PENDING and enqueue a sentiment job."""
+    with SessionLocal() as db:
+        post = db.get(Post, post_id)
+        if post is None:
+            raise ValueError("Post not found")
+
+        if not post.content:
+            raise ValueError("Post has no content for sentiment analysis")
+
+        if post.sentiment_status == "PENDING":
+            return _to_dict(post)
+
+        post.sentiment_status = "PENDING"
+        db.commit()
+        db.refresh(post)
+
+        publish_sentiment_job(post.id)
+
+        return _to_dict(post)
 
 
 def get_post_by_id(post_id: int) -> Optional[dict]:

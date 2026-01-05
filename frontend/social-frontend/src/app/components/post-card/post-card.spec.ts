@@ -12,6 +12,10 @@ function makePost(status: 'PENDING' | 'READY' | 'FAILED'): Post {
     content: 'hello',
     username: 'alice',
     created_at: '2024-01-01T00:00:00Z',
+    sentiment_status: 'NONE',
+    sentiment_label: null,
+    sentiment_score: null,
+
   };
 }
 

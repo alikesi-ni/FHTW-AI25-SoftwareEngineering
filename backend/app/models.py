@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Text, DateTime
+from sqlalchemy import String, Text, DateTime, Float, Column
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -24,3 +24,6 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )
+    sentiment_status = Column(String, nullable=False, default="NONE")
+    sentiment_label = Column(String, nullable=True)
+    sentiment_score = Column(Float, nullable=True)

@@ -15,5 +15,9 @@ class PostOut(BaseModel):
     content: Optional[str] = None
     username: str
     created_at: datetime
+    sentiment_status: str
+    sentiment_label: str | None
+    sentiment_score: float | None
+
     image_description: Optional[str] = None
     description_status: DescriptionStatus

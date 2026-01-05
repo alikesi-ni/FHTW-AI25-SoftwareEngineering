@@ -101,6 +101,12 @@ def get_posts(
 ):
     return service.get_posts(username=user, order_by=order_by, order_dir=order_dir, limit=limit)
 
+@router.post("/posts/{post_id}/sentiment", response_model=PostOut, status_code=202)
+def analyze_sentiment(post_id: int):
+    try:
+        return service.request_sentiment_analysis(post_id)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/posts/{post_id}", response_model=PostOut)
 def get_post(post_id: int):

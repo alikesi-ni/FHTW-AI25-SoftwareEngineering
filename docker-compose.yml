@@ -85,6 +85,17 @@ services:
     volumes:
       - ./uploads:/app/uploads
 
+  sentiment-worker:
+    build:
+      context: ./sentiment-worker
+    container_name: social-sentiment-worker
+    env_file:
+      - .env.docker
+    depends_on:
+      - db
+      - rabbitmq
+      
+
   frontend:
     build:
       context: ./frontend/social-frontend

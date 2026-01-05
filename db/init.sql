@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS post (
   content        TEXT,
   username       TEXT NOT NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  sentiment_status TEXT NOT NULL DEFAULT 'NONE',
+  sentiment_label TEXT,
+  sentiment_score REAL,
+
 
   -- At least one of content or image must be present
   CONSTRAINT post_content_or_image
@@ -20,7 +24,10 @@ CREATE TABLE IF NOT EXISTS post (
       (image_filename IS NULL AND image_status = 'READY')
       OR
       (image_filename IS NOT NULL AND image_status IN ('PENDING', 'READY', 'FAILED'))
-    )
+    ),
+
+  CONSTRAINT sentiment_status_check CHECK (sentiment_status IN ('NONE','PENDING','READY','FAILED'))
+  
 );
 
 ALTER TABLE post

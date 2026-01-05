@@ -1,6 +1,9 @@
 import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
+import { PostService } from '../../services/post';
+import { switchMap } from 'rxjs/operators';
+
 
 @Component({
   selector: 'app-post-card',
@@ -16,6 +19,41 @@ export class PostCard {
   @Output() generateDescription = new EventEmitter<number>();
 
   lightboxOpen = false;
+  loadingSentiment = false;
+
+  constructor(private postService: PostService) {}
+
+isAnalyzingSentiment = false;
+
+onAnalyzeSentiment(): void {
+  if (!this.post?.id || this.isAnalyzingSentiment) {
+    return;
+  }
+
+  this.isAnalyzingSentiment = true;
+  this.post.sentiment_status = 'PENDING';
+
+  this.postService
+    .analyzeSentiment(this.post.id)
+    .pipe(switchMap(() => this.postService.pollSentiment(this.post.id)))
+    .subscribe({
+      next: (updatedPost) => {
+        this.post = {
+          ...this.post,
+          sentiment_status: updatedPost.sentiment_status,
+          sentiment_label: updatedPost.sentiment_label,
+          sentiment_score: updatedPost.sentiment_score,
+        };
+        this.isAnalyzingSentiment = false;
+      },
+      error: (err) => {
+        console.error('Sentiment analysis failed', err);
+        this.isAnalyzingSentiment = false;
+      },
+    });
+}
+
+  
 
   // If reduced image fails to load, we fall back to the original once.
   imgSrc: string | null = null;
