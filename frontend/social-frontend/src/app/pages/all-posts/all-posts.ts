@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Subscription, switchMap } from 'rxjs';
 
 import { PostService } from '../../services/post';
 import { PostCard } from '../../components/post-card/post-card';
@@ -39,8 +39,8 @@ export class AllPosts implements OnInit, OnDestroy {
   }
 
   loadPosts(): void {
-    this.loading = true;
     this.error = null;
+    this.loading = true;
 
     this.postService.getAllPosts().subscribe({
       next: (res) => {
@@ -55,15 +55,16 @@ export class AllPosts implements OnInit, OnDestroy {
     });
   }
 
-  /* ---------------- IMAGE DESCRIPTION ---------------- */
-
   onDescribeImage(postId: number): void {
     const post = this.posts.find((p) => p.id === postId);
-    if (!post || !post.image_filename) return;
+    if (!post) return;
 
+    // Guard rails
+    if (!post.image_filename) return;
     if (post.description_status === 'PENDING') return;
     if (post.description_status === 'READY' && post.image_description) return;
 
+    // Optimistic UI
     this.patchPost(postId, {
       description_status: 'PENDING',
       image_description: null,
@@ -71,78 +72,84 @@ export class AllPosts implements OnInit, OnDestroy {
 
     this.postService.requestImageDescription(postId).subscribe({
       next: () => {
+        // Kill any existing stream for this post
         this.sseSubs.get(postId)?.unsubscribe();
 
-        const sub = this.descEvents
+        // IMPORTANT: create placeholder BEFORE subscribing (avoids TDZ / sync emission issues)
+        const holder = new Subscription();
+        this.sseSubs.set(postId, holder);
+
+        const inner = this.descEvents
           .subscribeToPost(postId)
           .subscribe((evt: DescriptionEventPayload) => {
+            const p = this.posts.find((x) => x.id === postId);
+            if (!p) return;
+
             if (evt.description_status) {
               this.patchPost(postId, {
                 description_status: evt.description_status as Post['description_status'],
               });
             }
+
             if (evt.image_description !== undefined) {
               this.patchPost(postId, {
                 image_description: evt.image_description ?? null,
               });
             }
 
-            const updated = this.posts.find((p) => p.id === postId);
+            const updated = this.posts.find((x) => x.id === postId);
             if (
               updated &&
               (updated.description_status === 'READY' ||
                 updated.description_status === 'FAILED')
             ) {
-              sub.unsubscribe();
+              // Unsubscribe via map (never reference local const sub inside callback)
+              this.sseSubs.get(postId)?.unsubscribe();
               this.sseSubs.delete(postId);
             }
           });
 
-        this.sseSubs.set(postId, sub);
+        holder.add(inner);
       },
-      error: () => {
+      error: (err) => {
+        console.error(err);
         this.patchPost(postId, { description_status: 'FAILED' });
+        this.sseSubs.get(postId)?.unsubscribe();
+        this.sseSubs.delete(postId);
       },
     });
   }
-
-  /* ---------------- SENTIMENT ---------------- */
 
   onAnalyzeSentiment(postId: number): void {
     const post = this.posts.find((p) => p.id === postId);
-    if (!post || !post.content) return;
+    if (!post) return;
 
+    // Guard rails
+    if (!post.content) return;
     if (post.sentiment_status === 'PENDING') return;
-    if (post.sentiment_status === 'READY') return;
+    if (post.sentiment_status === 'READY' && post.sentiment_label && post.sentiment_score !== null) return;
 
+    // Optimistic UI
     this.patchPost(postId, { sentiment_status: 'PENDING' });
 
-    this.postService.analyzeSentiment(postId).subscribe({
-      next: () => {
-        this.postService.pollSentiment(postId).subscribe({
-          next: (updated) => {
-            this.patchPost(postId, {
-              sentiment_status: updated.sentiment_status,
-              sentiment_label: updated.sentiment_label,
-              sentiment_score: updated.sentiment_score,
-            });
-          },
-          error: () => {
-            this.patchPost(postId, { sentiment_status: 'FAILED' });
-          },
-        });
-      },
-      error: () => {
-        this.patchPost(postId, { sentiment_status: 'FAILED' });
-      },
-    });
+    this.postService
+      .analyzeSentiment(postId)
+      .pipe(switchMap(() => this.postService.pollSentiment(postId)))
+      .subscribe({
+        next: (updated) => this.replacePost(updated),
+        error: (err) => {
+          console.error(err);
+          this.patchPost(postId, { sentiment_status: 'FAILED' });
+        },
+      });
   }
 
-  /* ---------------- HELPERS ---------------- */
+  // helpers
+  replacePost(updated: Post): void {
+    this.posts = this.posts.map((p) => (p.id === updated.id ? updated : p));
+  }
 
   patchPost(postId: number, patch: Partial<Post>): void {
-    this.posts = this.posts.map((p) =>
-      p.id === postId ? { ...p, ...patch } : p
-    );
+    this.posts = this.posts.map((p) => (p.id === postId ? { ...p, ...patch } : p));
   }
 }
