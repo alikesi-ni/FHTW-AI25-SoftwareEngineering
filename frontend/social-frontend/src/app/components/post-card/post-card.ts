@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, HostListener } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { Post } from '../../models/post';
 import { PostService } from '../../services/post';
+import { switchMap } from 'rxjs/operators';
 
 
 @Component({
@@ -22,24 +23,36 @@ export class PostCard {
 
   constructor(private postService: PostService) {}
 
-  onAnalyzeSentiment(): void {
-    if (!this.post || !this.post.id || this.loadingSentiment) {
-      return;
-    }
+isAnalyzingSentiment = false;
 
-    this.loadingSentiment = true;
+onAnalyzeSentiment(): void {
+  if (!this.post?.id || this.isAnalyzingSentiment) {
+    return;
+  }
 
-    this.postService.analyzeSentiment(this.post.id).subscribe({
-      next: (updated) => {
-        this.post = updated;
-        this.loadingSentiment = false;
+  this.isAnalyzingSentiment = true;
+  this.post.sentiment_status = 'PENDING';
+
+  this.postService
+    .analyzeSentiment(this.post.id)
+    .pipe(switchMap(() => this.postService.pollSentiment(this.post.id)))
+    .subscribe({
+      next: (updatedPost) => {
+        this.post = {
+          ...this.post,
+          sentiment_status: updatedPost.sentiment_status,
+          sentiment_label: updatedPost.sentiment_label,
+          sentiment_score: updatedPost.sentiment_score,
+        };
+        this.isAnalyzingSentiment = false;
       },
       error: (err) => {
-        console.error('Failed to analyze sentiment', err);
-        this.loadingSentiment = false;
-      }
+        console.error('Sentiment analysis failed', err);
+        this.isAnalyzingSentiment = false;
+      },
     });
-  }
+}
+
   
 
   // If reduced image fails to load, we fall back to the original once.

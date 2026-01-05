@@ -8,12 +8,7 @@ from PIL import Image
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from transformers import pipeline
 
-# load once, reuse for all messages
-sentiment_analyzer = pipeline("sentiment-analysis")
-
-SENTIMENT_QUEUE_NAME = os.getenv("RABBITMQ_SENTIMENT_QUEUE", "sentiment_analyze")
 
 def amqp_params() -> pika.ConnectionParameters:
     host = os.getenv("RABBITMQ_HOST", "localhost")
@@ -107,7 +102,6 @@ def update_status(engine: Engine, filename: str, status: str) -> None:
 
 def main() -> None:
     queue_name = os.getenv("RABBITMQ_QUEUE", "image_resize")
-    sentiment_queue_name = SENTIMENT_QUEUE_NAME
     image_root = Path(os.getenv("IMAGE_ROOT", "/app/uploads"))
     original_dir, reduced_dir = ensure_dirs(image_root)
 
@@ -125,11 +119,7 @@ def main() -> None:
 
     channel = connection.channel()
     channel.queue_declare(queue=queue_name, durable=True)
-    channel.queue_declare(queue=sentiment_queue_name, durable=True)
     channel.basic_qos(prefetch_count=1)
-
-    print(f"[worker] Listening on queue: {queue_name}")
-    print(f"[worker] Listening on sentiment queue: {sentiment_queue_name}")
 
     print(f"[resize-worker] Listening on queue: {queue_name}")
 
@@ -171,75 +161,7 @@ def main() -> None:
             print(f"[resize-worker] Job failed: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
-    
-    def update_sentiment(engine: Engine, post_id: int, label: str, score: float) -> None:
-        with engine.begin() as conn:
-            conn.execute(
-                text(
-                    "UPDATE post "
-                    "SET sentiment_status = :status, "
-                    "sentiment_label = :label, "
-                    "sentiment_score = :score "
-                    "WHERE id = :post_id"
-                ),
-                {
-                    "status": "READY",
-                    "label": label,
-                    "score": score,
-                    "post_id": post_id,
-                },
-            )
-
-    def process_sentiment_message(ch, method, properties, body) -> None:
-        try:
-            payload = json.loads(body.decode("utf-8"))
-            post_id = int(payload["post_id"])
-        except (ValueError, KeyError, json.JSONDecodeError):
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-            return
-
-        try:
-            # 1) Read post content from DB
-            with engine.connect() as conn:
-                row = conn.execute(
-                    text("SELECT content FROM post WHERE id = :post_id"),
-                    {"post_id": post_id},
-                ).first()
-
-            if not row or not row[0]:
-                print(f"[worker] No content for post {post_id}, skipping sentiment.")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
-
-            content = row[0]
-
-            # 2) Run ML model
-            result = sentiment_analyzer(str(content))[0]
-            raw_label = result.get("label", "")
-            score = float(result.get("score", 0.0))
-
-            if raw_label in ("POSITIVE", "NEGATIVE"):
-                label = raw_label
-            elif "1" in raw_label:
-                label = "POSITIVE"
-            else:
-                label = "NEGATIVE"
-
-            # 3) Store result in DB
-            update_sentiment(engine, post_id, label, score)
-            print(f"[worker] Sentiment updated for post {post_id}: {label} ({score:.3f})")
-
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-
-        except Exception as e:
-            print(f"[worker] Sentiment job failed for post {post_id}: {e}")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-    
     channel.basic_consume(queue=queue_name, on_message_callback=handle)
-    channel.basic_consume(
-        queue=sentiment_queue_name,
-        on_message_callback=process_sentiment_message,
-    )
     try:
         channel.start_consuming()
     finally:

@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
 import { Post } from '../models/post';
+import { timer, Observable } from 'rxjs';
+import { switchMap, takeWhile } from 'rxjs/operators';
 
 export interface CreatePostResponse {
   id: number;
@@ -75,4 +76,13 @@ export class PostService {
       {}
     );
   }
+
+  pollSentiment(postId: number): Observable<Post> {
+  return timer(0, 1000).pipe(   
+    switchMap(() => this.getPost(postId)),
+    takeWhile(p => p.sentiment_status === 'PENDING', true)
+  );
+}
+
+
 }
