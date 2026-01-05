@@ -117,7 +117,7 @@ def get_post(post_id: int):
 
 
 @router.post("/posts/{post_id}/describe", status_code=202)
-def describe_post(post_id: int):
+def describe_image(post_id: int):
     post = service.get_post_by_id(post_id)
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
