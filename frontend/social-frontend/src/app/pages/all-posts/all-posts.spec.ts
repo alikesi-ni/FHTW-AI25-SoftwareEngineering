@@ -1,39 +1,34 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
 import { AllPosts } from './all-posts';
 import { Post } from '../../models/post';
 
-/**
- * Stub for app-post-card so we don't depend on its template or logic.
- * We only care about the generateDescription output.
- */
-@Component({
-  selector: 'app-post-card',
-  standalone: true,
-  template: '',
-})
-class PostCardStub {
-  @Input({ required: true }) post!: Post;
-  @Output() generateDescription = new EventEmitter<number>();
+function makePost(id: number): Post {
+  return {
+    id,
+    image_filename: 'example.jpg',
+    image_status: 'READY',
+    image_description: null,
+    description_status: 'NONE',
+    content: 'hello',
+    username: 'alice',
+    created_at: '2024-01-01T00:00:00Z',
+    sentiment_status: 'NONE',
+    sentiment_label: null,
+    sentiment_score: null,
+  };
 }
 
 describe('AllPosts', () => {
-  let component: AllPosts;
   let fixture: ComponentFixture<AllPosts>;
+  let component: AllPosts;
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-    })
-      .overrideComponent(AllPosts, {
-        set: {
-          imports: [PostCardStub],
-        },
-      })
-      .compileComponents();
+      imports: [AllPosts, HttpClientTestingModule],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AllPosts);
     component = fixture.componentInstance;
@@ -48,57 +43,58 @@ describe('AllPosts', () => {
     expect(component).toBeTruthy();
   });
 
-  it('emitting generateDescription triggers POST /posts/:id/describe', () => {
-    component.ngOnInit();
+  it('loads posts on init (GET /posts)', () => {
+    fixture.detectChanges(); // triggers ngOnInit -> loadPosts()
 
-    const basePost: any = {
-      id: 1,
-      image_filename: 'test.png',
-      image_status: 'READY',
-      content: null,
-      username: 'alice',
-      created_at: new Date().toISOString(),
-      image_description: null,
-      description_status: 'NONE',
-    };
+    const req = httpMock.expectOne('http://localhost:8000/posts');
+    expect(req.request.method).toBe('GET');
+    req.flush([makePost(1)]);
 
-    // 1) flush first GET /posts
-    const getReq1 = httpMock.expectOne('http://localhost:8000/posts');
-    expect(getReq1.request.method).toBe('GET');
-    getReq1.flush([basePost]);
+    expect(component.posts.length).toBe(1);
+    expect(component.posts[0].id).toBe(1);
+  });
 
+  it('onDescribeImage triggers POST /posts/:id/describe', () => {
+    // Arrange: init + flush initial load
     fixture.detectChanges();
+    httpMock.expectOne('http://localhost:8000/posts').flush([makePost(1)]);
 
-    // 2) emit output from stub post card
-    const stubDe = fixture.debugElement.children.find(
-      (de) => de.componentInstance instanceof PostCardStub
-    );
-    expect(stubDe).toBeTruthy();
+    // Act: call the handler directly (unit-test parent logic)
+    component.onDescribeImage(1);
 
-    const stub = stubDe!.componentInstance as PostCardStub;
-    stub.generateDescription.emit(1);
+    // Assert: request is made
+    const req = httpMock.expectOne('http://localhost:8000/posts/1/describe');
+    expect(req.request.method).toBe('POST');
+    req.flush({ status: 'PENDING' });
 
-    // 3) expect POST /posts/1/describe
-    const postReq = httpMock.expectOne('http://localhost:8000/posts/1/describe');
-    expect(postReq.request.method).toBe('POST');
-    postReq.flush({ status: 'PENDING' });
+    // We don't assert SSE here; that's DescriptionEventsService's job.
+    // But we *can* assert optimistic UI:
+    const p = component.posts.find(x => x.id === 1)!;
+    expect(p.description_status).toBe('PENDING');
+  });
 
-    // 4) if component polls GET /posts/1, flush one READY response
-    const pollReqs = httpMock.match('http://localhost:8000/posts/1');
-    if (pollReqs.length > 0) {
-      pollReqs.forEach((r) =>
-        r.flush({
-          ...basePost,
-          description_status: 'READY',
-          image_description: 'A short description.',
-        })
-      );
-    }
-
-    // 5) IMPORTANT: flush any additional GET /posts the component might trigger (refresh)
-    const extraGets = httpMock.match('http://localhost:8000/posts');
-    extraGets.forEach((r) => r.flush([basePost]));
-
+  it('onAnalyzeSentiment triggers POST /posts/:id/sentiment', () => {
     fixture.detectChanges();
+    httpMock.expectOne('http://localhost:8000/posts').flush([makePost(1)]);
+
+    component.onAnalyzeSentiment(1);
+
+    const req = httpMock.expectOne('http://localhost:8000/posts/1/sentiment');
+    expect(req.request.method).toBe('POST');
+    req.flush({}); // backend returns something; not important here
+
+    // pollSentiment will call GET /posts/1 at least once
+    const pollReq = httpMock.expectOne('http://localhost:8000/posts/1');
+    expect(pollReq.request.method).toBe('GET');
+    pollReq.flush({
+      ...makePost(1),
+      sentiment_status: 'READY',
+      sentiment_label: 'POSITIVE',
+      sentiment_score: 0.95,
+    });
+
+    const p = component.posts.find(x => x.id === 1)!;
+    expect(p.sentiment_status).toBe('READY');
+    expect(p.sentiment_label).toBe('POSITIVE');
   });
 });

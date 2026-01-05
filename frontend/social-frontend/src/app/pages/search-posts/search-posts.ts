@@ -42,9 +42,12 @@ export class SearchPosts implements OnDestroy {
     this.loading = true;
     this.error = null;
 
+    for (const sub of this.sseSubs.values()) sub.unsubscribe();
+    this.sseSubs.clear();
+
     this.postService.getPostsByUser(u).subscribe({
       next: (posts) => {
-        this.posts = posts;
+        this.posts = posts ?? [];
         this.loading = false;
       },
       error: () => {
@@ -54,40 +57,44 @@ export class SearchPosts implements OnDestroy {
     });
   }
 
-  onGenerateDescription(postId: number): void {
-    const post = this.posts.find((p) => p.id === postId);
-    if (!post) return;
+  /* ---------------- IMAGE DESCRIPTION ---------------- */
 
-    // Guard rails
-    if (!post.image_filename) return;
+  onDescribeImage(postId: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post || !post.image_filename) return;
+
     if (post.description_status === 'PENDING') return;
     if (post.description_status === 'READY' && post.image_description) return;
 
-    // Optimistic UI
-    post.description_status = 'PENDING';
-    post.image_description = null;
+    this.patchPost(postId, {
+      description_status: 'PENDING',
+      image_description: null,
+    });
 
-    // Trigger backend -> queue
     this.postService.requestImageDescription(postId).subscribe({
       next: () => {
-        // Ensure we only have one SSE stream per post
         this.sseSubs.get(postId)?.unsubscribe();
 
         const sub = this.descEvents
           .subscribeToPost(postId)
           .subscribe((evt: DescriptionEventPayload) => {
-            const p = this.posts.find((x) => x.id === postId);
-            if (!p) return;
-
             if (evt.description_status) {
-              p.description_status = evt.description_status as Post['description_status'];
+              this.patchPost(postId, {
+                description_status: evt.description_status as Post['description_status'],
+              });
             }
             if (evt.image_description !== undefined) {
-              p.image_description = evt.image_description ?? null;
+              this.patchPost(postId, {
+                image_description: evt.image_description ?? null,
+              });
             }
 
-            // Close SSE stream on terminal state
-            if (p.description_status === 'READY' || p.description_status === 'FAILED') {
+            const updated = this.posts.find((p) => p.id === postId);
+            if (
+              updated &&
+              (updated.description_status === 'READY' ||
+                updated.description_status === 'FAILED')
+            ) {
               sub.unsubscribe();
               this.sseSubs.delete(postId);
             }
@@ -96,11 +103,48 @@ export class SearchPosts implements OnDestroy {
         this.sseSubs.set(postId, sub);
       },
       error: () => {
-        // Backend unavailable / request failed
-        post.description_status = 'FAILED';
-        this.sseSubs.get(postId)?.unsubscribe();
-        this.sseSubs.delete(postId);
+        this.patchPost(postId, { description_status: 'FAILED' });
       },
     });
+  }
+
+  /* ---------------- SENTIMENT ---------------- */
+
+  onAnalyzeSentiment(postId: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post || !post.content) return;
+
+    if (post.sentiment_status === 'PENDING') return;
+    if (post.sentiment_status === 'READY') return;
+
+    this.patchPost(postId, { sentiment_status: 'PENDING' });
+
+    this.postService.analyzeSentiment(postId).subscribe({
+      next: () => {
+        this.postService.pollSentiment(postId).subscribe({
+          next: (updated) => {
+            this.patchPost(postId, {
+              sentiment_status: updated.sentiment_status,
+              sentiment_label: updated.sentiment_label,
+              sentiment_score: updated.sentiment_score,
+            });
+          },
+          error: () => {
+            this.patchPost(postId, { sentiment_status: 'FAILED' });
+          },
+        });
+      },
+      error: () => {
+        this.patchPost(postId, { sentiment_status: 'FAILED' });
+      },
+    });
+  }
+
+  /* ---------------- HELPERS ---------------- */
+
+  patchPost(postId: number, patch: Partial<Post>): void {
+    this.posts = this.posts.map((p) =>
+      p.id === postId ? { ...p, ...patch } : p
+    );
   }
 }
