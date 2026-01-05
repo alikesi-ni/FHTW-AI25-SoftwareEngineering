@@ -1,15 +1,27 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
+from app.events import router as events_router
 from app.routes import router as routes_router
+from app.describe_results_consumer import start_consumer_thread
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    start_consumer_thread()
+    yield
+    # Shutdown (optional): if you later implement stop/join, call it here.
 
 
 def create_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
 
-    # CORS (keep as you had it)
+    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -27,6 +39,7 @@ def create_app() -> FastAPI:
 
     # Routes
     app.include_router(routes_router)
+    app.include_router(events_router)
 
     return app
 

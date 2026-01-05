@@ -1,8 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
+
 import { PostService } from '../../services/post';
 import { PostCard } from '../../components/post-card/post-card';
-import {Post} from '../../models/post';
+import { Post } from '../../models/post';
+import {
+  DescriptionEventsService,
+  DescriptionEventPayload,
+} from '../../services/description-events';
 
 @Component({
   selector: 'app-all-posts',
@@ -11,20 +17,30 @@ import {Post} from '../../models/post';
   templateUrl: './all-posts.html',
   styleUrls: ['./all-posts.css'],
 })
-export class AllPosts implements OnInit {
-
-  posts: any[] = [];
+export class AllPosts implements OnInit, OnDestroy {
+  posts: Post[] = [];
   loading = true;
   error: string | null = null;
 
-  constructor(private postService: PostService) {}
+  private sseSubs = new Map<number, Subscription>();
+
+  constructor(
+    private postService: PostService,
+    private descEvents: DescriptionEventsService
+  ) {}
 
   ngOnInit(): void {
     this.loadPosts();
   }
 
+  ngOnDestroy(): void {
+    for (const sub of this.sseSubs.values()) sub.unsubscribe();
+    this.sseSubs.clear();
+  }
+
   loadPosts(): void {
     this.error = null;
+    this.loading = true;
 
     this.postService.getAllPosts().subscribe({
       next: (res) => {
@@ -35,63 +51,75 @@ export class AllPosts implements OnInit {
         console.error('Failed to load posts', err);
         this.error = 'Failed to load posts.';
         this.loading = false;
-      }
+      },
     });
   }
 
-  onGenerateDescription(postId: number) {
-    // optimistic UI update
-    this.patchPost(postId, { description_status: 'PENDING' });
+  onGenerateDescription(postId: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return;
 
-    // enqueue description job
-    this.postService.describePost(postId).subscribe({
-      next: () => this.pollPost(postId),
-      error: (err) => console.error(err),
+    // Guard rails
+    if (!post.image_filename) return;
+    if (post.description_status === 'PENDING') return;
+    if (post.description_status === 'READY' && post.image_description) return;
+
+    // Optimistic UI
+    this.patchPost(postId, {
+      description_status: 'PENDING',
+      image_description: null,
     });
-  }
 
-  pollPost(postId: number) {
-    const maxAttempts = 20;
-    let attempts = 0;
+    // Trigger backend -> queue
+    this.postService.requestImageDescription(postId).subscribe({
+      next: () => {
+        // Ensure only one SSE stream per post
+        this.sseSubs.get(postId)?.unsubscribe();
 
-    const tick = () => {
-      attempts++;
+        const sub = this.descEvents
+          .subscribeToPost(postId)
+          .subscribe((evt: DescriptionEventPayload) => {
+            const p = this.posts.find((x) => x.id === postId);
+            if (!p) return;
 
-      this.postService.getPost(postId).subscribe({
-        next: (post) => {
-          this.replacePost(post);
+            if (evt.description_status) {
+              this.patchPost(postId, {
+                description_status: evt.description_status as Post['description_status'],
+              });
+            }
 
-          if (
-            post.description_status === 'READY' ||
-            post.description_status === 'FAILED' ||
-            attempts >= maxAttempts
-          ) {
-            return; // stop polling
-          }
+            if (evt.image_description !== undefined) {
+              this.patchPost(postId, { image_description: evt.image_description ?? null });
+            }
 
-          setTimeout(tick, 1500);
-        },
-        error: () => {
-          if (attempts < maxAttempts) {
-            setTimeout(tick, 2000);
-          }
-        },
-      });
-    };
+            const updated = this.posts.find((x) => x.id === postId);
+            if (
+              updated &&
+              (updated.description_status === 'READY' ||
+                updated.description_status === 'FAILED')
+            ) {
+              sub.unsubscribe();
+              this.sseSubs.delete(postId);
+            }
+          });
 
-    tick();
+        this.sseSubs.set(postId, sub);
+      },
+      error: (err) => {
+        console.error(err);
+        this.patchPost(postId, { description_status: 'FAILED' });
+        this.sseSubs.get(postId)?.unsubscribe();
+        this.sseSubs.delete(postId);
+      },
+    });
   }
 
   // helpers
-  replacePost(updated: Post) {
-    this.posts = this.posts.map((p) =>
-      p.id === updated.id ? updated : p
-    );
+  replacePost(updated: Post): void {
+    this.posts = this.posts.map((p) => (p.id === updated.id ? updated : p));
   }
 
-  patchPost(postId: number, patch: Partial<Post>) {
-    this.posts = this.posts.map((p) =>
-      p.id === postId ? { ...p, ...patch } : p
-    );
+  patchPost(postId: number, patch: Partial<Post>): void {
+    this.posts = this.posts.map((p) => (p.id === postId ? { ...p, ...patch } : p));
   }
 }

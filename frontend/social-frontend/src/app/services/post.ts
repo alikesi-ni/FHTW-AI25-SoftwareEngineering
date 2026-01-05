@@ -11,7 +11,7 @@ export interface CreatePostResponse {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class PostService {
   private apiUrl = 'http://localhost:8000';
@@ -41,10 +41,7 @@ export class PostService {
       formData.append('image', imageFile);
     }
 
-    return this.http.post<CreatePostResponse>(
-      `${this.apiUrl}/posts`,
-      formData
-    );
+    return this.http.post<CreatePostResponse>(`${this.apiUrl}/posts`, formData);
   }
 
   getAllPosts(): Observable<Post[]> {
@@ -56,33 +53,40 @@ export class PostService {
       params: {
         user: username,
         order_by: 'created_at',
-        order_dir: 'desc'
-      }
+        order_dir: 'desc',
+      },
     });
-  }
-
-  analyzeSentiment(postId: number) {
-    const url = `${this.apiUrl}/posts/${postId}/sentiment`;
-    return this.http.post<Post>(url, {});
   }
 
   getPost(postId: number): Observable<Post> {
     return this.http.get<Post>(`${this.apiUrl}/posts/${postId}`);
   }
 
-  describePost(postId: number): Observable<{ status: string }> {
+  /**
+   * Trigger sentiment analysis (async worker sets sentiment_status).
+   */
+  analyzeSentiment(postId: number): Observable<Post> {
+    return this.http.post<Post>(`${this.apiUrl}/posts/${postId}/sentiment`, {});
+  }
+
+  /**
+   * Trigger image description generation (async worker sets description_status).
+   */
+  requestImageDescription(postId: number): Observable<{ status: string }> {
     return this.http.post<{ status: string }>(
       `${this.apiUrl}/posts/${postId}/describe`,
       {}
     );
   }
 
+  /**
+   * Poll until sentiment leaves PENDING (terminal value included).
+   * (You can keep this if you didn't switch sentiment to SSE.)
+   */
   pollSentiment(postId: number): Observable<Post> {
-  return timer(0, 1000).pipe(   
-    switchMap(() => this.getPost(postId)),
-    takeWhile(p => p.sentiment_status === 'PENDING', true)
-  );
-}
-
-
+    return timer(0, 1000).pipe(
+      switchMap(() => this.getPost(postId)),
+      takeWhile((p) => p.sentiment_status === 'PENDING', true)
+    );
+  }
 }

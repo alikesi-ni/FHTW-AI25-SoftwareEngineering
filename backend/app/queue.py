@@ -8,10 +8,11 @@ def _amqp_params() -> pika.ConnectionParameters:
     port = int(os.getenv("RABBITMQ_PORT", "5672"))
     user = os.getenv("RABBITMQ_USER", "guest")
     password = os.getenv("RABBITMQ_PASSWORD", "guest")
-
-    credentials = pika.PlainCredentials(user, password)
-    return pika.ConnectionParameters(host=host, port=port, credentials=credentials)
-
+    return pika.ConnectionParameters(
+        host=host,
+        port=port,
+        credentials=pika.PlainCredentials(user, password),
+    )
 
 def publish_resize_job(filename: str) -> None:
     queue_name = os.getenv("RABBITMQ_QUEUE", "image_resize")
@@ -55,26 +56,20 @@ def publish_sentiment_job(post_id: int) -> None:
         connection.close()
 
 
-def publish_describe_job(post_id: int, filename: str) -> None:
-    queue_name = os.getenv("RABBITMQ_DESCRIBE_QUEUE", "image_describe")
+def publish_describe_job(post_id: int) -> None:
+    queue_name = os.getenv("RABBITMQ_DESCRIBE_QUEUE", "describe_requests")
+    payload = {"post_id": post_id}
 
-    connection = pika.BlockingConnection(_amqp_params())
-    try:
-        channel = connection.channel()
-        channel.queue_declare(queue=queue_name, durable=True)
+    conn = pika.BlockingConnection(_amqp_params())
+    ch = conn.channel()
+    ch.queue_declare(queue=queue_name, durable=True)
 
-        body = json.dumps({"post_id": post_id}).encode("utf-8")
-        body = json.dumps({"post_id": post_id, "filename": filename}).encode("utf-8")
-        channel.basic_publish(
-            exchange="",
-            routing_key=queue_name,
-            body=body,
-            properties=pika.BasicProperties(
-                delivery_mode=2,  # make message persistent
-            ),
-        )
-    finally:
-        connection.close()
+    ch.basic_publish(
+        exchange="",
+        routing_key=queue_name,
+        body=json.dumps(payload).encode("utf-8"),
+        properties=pika.BasicProperties(delivery_mode=2),  # persistent
+    )
 
-        properties=pika.BasicProperties(delivery_mode=2)
+    conn.close()
     

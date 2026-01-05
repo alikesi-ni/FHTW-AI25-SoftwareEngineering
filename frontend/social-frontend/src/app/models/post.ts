@@ -4,15 +4,23 @@ export type SentimentStatus = 'NONE' | 'PENDING' | 'READY' | 'FAILED';
 
 export interface Post {
   id: number;
-  image_filename: string | null;   // filename or null
-  image_status: ImageStatus;       // status of reduced image generation
-  content: string | null;          // text or null
+
+  /* Image */
+  image_filename: string | null;
+  image_status: 'PENDING' | 'READY' | 'FAILED';
+
+  /* Post content */
+  content: string | null;
   username: string;
-  
-  sentiment_status: SentimentStatus;
-  sentiment_label: string | null;
-  sentiment_score: number | null;// ISO timestamp from backend
-  created_at: string;              // ISO timestamp from backend
+  created_at: string;
+
+  /* AI image description */
   image_description: string | null;
   description_status: 'NONE' | 'PENDING' | 'READY' | 'FAILED';
+
+  /* Sentiment analysis */
+  sentiment_status: 'NONE' | 'PENDING' | 'READY' | 'FAILED';
+  sentiment_label: string | null;
+  sentiment_score: number | null;
 }
+
