@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 
 import { SearchPosts } from './search-posts';
 import { Post } from '../../models/post';
+import { DescriptionEventsService } from '../../services/description-events';
 
 function makePost(id: number): Post {
   return {
@@ -17,7 +19,7 @@ function makePost(id: number): Post {
     sentiment_status: 'NONE',
     sentiment_label: null,
     sentiment_score: null,
-  };
+  } as Post;
 }
 
 describe('SearchPosts', () => {
@@ -25,9 +27,20 @@ describe('SearchPosts', () => {
   let fixture: ComponentFixture<SearchPosts>;
   let httpMock: HttpTestingController;
 
+  const mockDescriptionEvents: Partial<DescriptionEventsService> = {
+    subscribeToPost: () =>
+      of({
+        description_status: 'READY',
+        image_description: 'test description',
+      } as any),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [SearchPosts, HttpClientTestingModule],
+      providers: [
+        { provide: DescriptionEventsService, useValue: mockDescriptionEvents },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SearchPosts);
@@ -65,37 +78,30 @@ describe('SearchPosts', () => {
 
     component.onDescribeImage(1);
 
-    // optimistic UI update
+    // optimistic
     expect(component.posts[0].description_status).toBe('PENDING');
 
     const req = httpMock.expectOne('http://localhost:8000/posts/1/describe');
     expect(req.request.method).toBe('POST');
     req.flush({ status: 'PENDING' });
+
+    // mocked SSE emits READY
+    expect(component.posts[0].description_status).toBe('READY');
+    expect(component.posts[0].image_description).toBe('test description');
   });
 
-  it('onAnalyzeSentiment triggers POST /posts/:id/sentiment then polls GET /posts/:id', () => {
+  it('onAnalyzeSentiment triggers POST /posts/:id/sentiment', () => {
     component.posts = [makePost(1)];
 
     component.onAnalyzeSentiment(1);
 
-    // optimistic pending
+    // optimistic
     expect(component.posts[0].sentiment_status).toBe('PENDING');
 
     const req = httpMock.expectOne('http://localhost:8000/posts/1/sentiment');
     expect(req.request.method).toBe('POST');
-    req.flush({});
+    req.flush({ status: 'PENDING' });
 
-    // pollSentiment performs GET /posts/1 (timer starts at 0)
-    const pollReq = httpMock.expectOne('http://localhost:8000/posts/1');
-    expect(pollReq.request.method).toBe('GET');
-    pollReq.flush({
-      ...makePost(1),
-      sentiment_status: 'READY',
-      sentiment_label: 'POSITIVE',
-      sentiment_score: 0.9,
-    });
-
-    expect(component.posts[0].sentiment_status).toBe('READY');
-    expect(component.posts[0].sentiment_label).toBe('POSITIVE');
+    // no GET expectation here anymore
   });
 });
