@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { PostService } from '../../services/post';
@@ -8,12 +8,14 @@ import { PostService } from '../../services/post';
   standalone: true,
   imports: [FormsModule, CommonModule],
   templateUrl: './create-post.html',
-  styleUrls: ['./create-post.css'],
+  styleUrls: ['./create-post.css']
 })
 export class CreatePost {
+  @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
+
   form = {
     content: '',
-    username: '',
+    username: ''
   };
 
   selectedFile: File | null = null;
@@ -34,8 +36,13 @@ export class CreatePost {
     this.error = null;
   }
 
-  // Username must be non-empty,
-  // and either content or an image (or both) must be present
+  private clearFileInput() {
+    this.selectedFile = null;
+    if (this.imageInput?.nativeElement) {
+      this.imageInput.nativeElement.value = '';
+    }
+  }
+
   canSubmit(): boolean {
     const usernameOk = this.form.username.trim().length > 0;
     const hasContent = this.form.content.trim().length > 0;
@@ -64,23 +71,25 @@ export class CreatePost {
 
     this.loading = true;
 
-    this.postService.createPost(username, content, this.selectedFile).subscribe({
-      next: (res) => {
-        this.loading = false;
-        this.result = `Post created with ID: ${res.id}`;
+    this.postService
+      .createPost(username, content, this.selectedFile)
+      .subscribe({
+        next: (res) => {
+          this.loading = false;
+          this.result = `Post created with ID: ${res.id}`;
 
-        // Reset form + file
-        this.form = { content: '', username: '' };
-        this.selectedFile = null;
-      },
-      error: (err) => {
-        this.loading = false;
-        if (err.error?.detail) {
-          this.error = err.error.detail;
-        } else {
-          this.error = 'Failed to create post. Check backend.';
+          // Reset form + clear file input UI
+          this.form = { content: '', username: '' };
+          this.clearFileInput();
+        },
+        error: (err) => {
+          this.loading = false;
+          if (err.error?.detail) {
+            this.error = err.error.detail;
+          } else {
+            this.error = 'Failed to create post. Check backend.';
+          }
         }
-      },
-    });
+      });
   }
 }
